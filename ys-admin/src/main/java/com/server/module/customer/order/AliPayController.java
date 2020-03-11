@@ -1,6 +1,9 @@
 package com.server.module.customer.order;
 
 import java.io.IOException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -8,6 +11,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.alibaba.fastjson.JSON;
 
+import com.server.common.persistence.BaseDao;
+import com.server.module.customer.product.ShoppingGoodsService;
+import com.server.module.customer.product.ShoppingGoodsServiceImpl;
+import com.server.module.customer.userInfo.TblCustomerBean;
+import com.server.module.customer.userInfo.TblCustomerDao;
+import com.server.module.customer.userInfo.TblCustomerService;
+import com.server.util.HttpUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +52,11 @@ public class AliPayController {
 	private AlipayAPIClientFactory alipayAPIClientFactory;
 	@Autowired
 	private AlipayConfigFactory alipayConfigFactory;
-	
+	@Autowired
+	private TblCustomerService tblCustomerService;
+	@Autowired
+	private ShoppingGoodsService shoppingGoodsService;
+
 	//支付宝app支付
 	//https://blog.csdn.net/qq_36004521/article/details/79543665
 	//@RequestParam
@@ -90,6 +104,82 @@ public class AliPayController {
 		log.info("<AlipayController--appPay--end>");
 		return appResponse.getBody();
 		
+	}
+
+	@GetMapping("/huafaAppPay")
+	public String huafaAppPay(OrderForm orderForm,HttpServletRequest request,HttpServletResponse response) throws IOException {
+		log.info("<AlipayController--appPay--start>");
+		Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
+		Long customerId = CustomerUtil.getCustomerId();
+//		if(record.getCustomerId()!=null && !record.getState().equals(PayStateEnum.PAY_SUCCESS.getState().toString())){
+//			CustomerBean customer = customerService.queryById(record.getCustomerId());
+//			if(customer!=null && StringUtil.isNotBlank(customer.getAlipayUserId())){
+//				String agreementNo = alipayService.querySign(customer.getAlipayUserId(),vmCode);
+//				if(StringUtil.isNotBlank(agreementNo)){
+//					ptCode = alipayService.cutPayment(record.getTotalPrice(), record.getPayCode(), record.getItemName(), agreementNo);
+//				}
+//			}
+//		}
+		Integer companyId=(Integer) id.get("companyId");
+		String product = (String) id.get("product");
+		String payCode = (String) id.get("payCode");
+		double nowprice=(double) id.get("nowprice");
+
+		redisClient.set("Price_"+customerId, id.get("nowprice").toString(),60*5);
+
+		AlipayClient alipayClient = alipayAPIClientFactory.getAlipayClient(companyId);
+		AlipayTradeAppPayRequest alipayRequest = new AlipayTradeAppPayRequest();
+		//AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
+		//AlipayTradeAppPayRequest aliAppPayRequest = new AlipayTradeAppPayRequest();
+		AliPayConfig alipayConfig = alipayConfigFactory.getAlipayConfig(companyId);
+		//alipayRequest.setReturnUrl(alipayConfig.wap_return_url);这个接口是获取token返回机器首页
+		alipayRequest.setNotifyUrl("http://yms.youshuidaojia.com/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
+		alipayRequest.setBizContent("{"
+				+ " \"out_trade_no\":\""+payCode+"\","
+				+ " \"total_amount\":\""+nowprice+"\","
+				+ " \"subject\":\""+product+"\","
+				+ " \"product_code\":\"QUICK_MSECURITY_PAY\""
+				+ " }");// 填充业务参数
+		AlipayTradeAppPayResponse appResponse = null;
+		try {
+			appResponse = alipayClient.sdkExecute(alipayRequest);
+		} catch (AlipayApiException e) {
+			e.printStackTrace();
+		} // 调用SDK生成表单
+		log.info("支付宝下单结果"+appResponse.getBody());
+		log.info("<AlipayController--appPay--end>");
+		/*
+		 * 
+		TblCustomerBean tbBean = tblCustomerService.getCustomerById(customerId);
+		OrderBean ob = orderService.getMessageByPayCode(payCode);
+		if (tbBean.getHuafaAppOpenId() !=null) {
+			if (appResponse.getCode().equals(9000) || appResponse.getCode().equals(8000)) {
+				Map<String, Object> huaAppMap = new HashMap<String, Object>();
+				List<ShoppingBean> newlist = orderService.findShoppingBeandByOrderId(ob.getId(),ob.getType());
+				huaAppMap.put("orderId", ob.getId());
+				huaAppMap.put("openId", tbBean.getHuafaAppOpenId());
+				huaAppMap.put("state", ob.getState());
+				huaAppMap.put("nowprice", ob.getNowprice());
+				huaAppMap.put("payCode", ob.getPayCode());
+				huaAppMap.put("createTime", ob.getCreateTime());
+				huaAppMap.put("time", new Date());
+				huaAppMap.put("type", ob.getType());
+				huaAppMap.put("useMoney", "");
+				huaAppMap.put("price", ob.getPrice());
+				huaAppMap.put("payType", ob.getPayType());
+				huaAppMap.put("stateName", ob.getStateName());
+				huaAppMap.put("ptCode", appResponse.getTradeNo());
+				huaAppMap.put("product", ob.getProduct());
+				huaAppMap.put("phone", tbBean.getPhone());
+				huaAppMap.put("list", newlist);
+				String json = JSON.toJSONString(huaAppMap);//map转String
+				//JSONObject jsonObject = JSON.parseObject(json);//String转json
+				HttpUtil.post("https://devapp.huafatech.com/app/water/orderInfo/createWaterOrderInfo", json);
+				log.info("订单传输成功！！！");
+			}
+			}*/
+		return appResponse.getBody();
+
 	}
 	
 //	 public LvQuResult alipay(String body, String subject, String totalAmount, int userId, int member_id, String outTradeNo) {

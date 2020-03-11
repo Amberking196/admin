@@ -10,6 +10,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.alibaba.fastjson.JSON;
+import com.server.module.customer.userInfo.TblCustomerDao;
+import com.server.module.customer.userInfo.userWxInfo.TblCustomerWxDao;
+import com.server.util.HttpUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -84,6 +88,8 @@ public class OrderServiceImpl implements OrderService {
 	private ShoppingGoodsSpellGroupDao shoppingGoodsSpellGroupDaoImpl;
 	@Autowired
 	private TblCustomerSpellGroupDao tblCustomerSpellGroupDaoImpl;
+	@Autowired
+	private TblCustomerDao tblCustomerDao;
 
 	@Override
 	public List<OrderDto> findOrderByOpenId(String openId) {
@@ -100,9 +106,11 @@ public class OrderServiceImpl implements OrderService {
 		User user = UserUtils.getUser();
 		orderform.setCustomerId(user.getId());
 		String openId = "";
+		String huafaAppOpenId = "";
 		if (orderform.getCustomerId() != null) {
 			openId = orderDao.findOpenIdByCustomerId(orderform.getCustomerId());
-			if (StringUtils.isBlank(openId)) {
+			huafaAppOpenId = tblCustomerDao.getCustomerById(user.getId()).getHuafaAppOpenId();
+			if (huafaAppOpenId ==null && StringUtils.isBlank(openId)){
 				returnDataUtil.setStatus(2);
 				returnDataUtil.setMessage("非微信用户，订单创建失败！");
 			}
@@ -195,6 +203,7 @@ public class OrderServiceImpl implements OrderService {
 			if (StringUtils.isNotBlank(orderform.getLocation())) {
 				ob.setLocation(orderform.getLocation());
 			}
+			//看这里 前端确定了这个值
 			if (orderform.getDistributionModel() != null) {
 				ob.setDistributionModel(orderform.getDistributionModel());
 			}
@@ -204,10 +213,15 @@ public class OrderServiceImpl implements OrderService {
 			if (orderform.getAddressId() != null) {
 				ob.setAddressId(orderform.getAddressId());
 			}
+			if (orderform.getType() != null) {
+				ob.setType(orderform.getType());
+			}else {
+				ob.setType(1);
+			}
 		}
 		ob.setCompanyId(companyId);
 		ob.setOpenid(openId);
-		ob.setType(1);
+		//ob.setType(1);
 		ob.setState(PayStateEnum.NOT_PAY.getState());
 		BigDecimal price = new BigDecimal(String.valueOf(orderDao.findSumPriceByProduct(orderform.getProduct())));
 		ob.setPrice(price);
@@ -227,7 +241,12 @@ public class OrderServiceImpl implements OrderService {
 			} else {
 				redisClient.set("SumDeductionMoney_" + openId, ob.getNowprice().toString(), 60 * 5);
 				ob.setNowprice(new BigDecimal(0));
-				ob.setState(PayStateEnum.PAY_SUCCESS.getState());
+				//  优惠券金额等于或大于价钱的几率肯定很小 hhh
+				if (ob.getDistributionModel()==1) {
+					ob.setState(PayStateEnum.PAY_SUCCESS.getState());
+				}else {
+					ob.setState(PayStateEnum.Delivering.getState());
+				}
 			}
 			ob.setCouponPrice(deductionMoney);
 			redisClient.set("CouponId_" + openId, orderform.getCoupon().toString(), 60 * 5);
@@ -248,7 +267,12 @@ public class OrderServiceImpl implements OrderService {
 				redisClient.set("MemberMoney_" + openId, price.toString(), 60 * 5);
 				redisClient.set("PayType_" + openId, "1", 300);// 1 余额支付标识
 				ob.setNowprice(new BigDecimal(0));
-				ob.setState(PayStateEnum.PAY_SUCCESS.getState());
+				//余额支付这里就要改 State  hhh
+				if (ob.getDistributionModel()==1) {
+					ob.setState(PayStateEnum.PAY_SUCCESS.getState());
+				}else {
+					ob.setState(PayStateEnum.Delivering.getState());
+				}
 				ob.setPayType(3);//余额支付
 				ob.setPayTime(new Date());
 				money = price;
@@ -258,7 +282,6 @@ public class OrderServiceImpl implements OrderService {
 			ob.setNowprice(price);
 			ob.setCouponPrice(new BigDecimal(0));
 		}
-
 		OrderBean bean = orderDao.insert(ob);
 		if (bean != null) {
 			OrderDetile obs = new OrderDetile();
@@ -273,7 +296,8 @@ public class OrderServiceImpl implements OrderService {
 				obs.setNum(newlist.get(b).getNum());
 				orderDao.insert(obs);
 			}
-			if ((PayStateEnum.PAY_SUCCESS.getState()).equals(bean.getState())) {
+			//这里又有问题了  hhh
+			if ((PayStateEnum.PAY_SUCCESS.getState()).equals(bean.getState()) || (PayStateEnum.Delivering.getState()).equals(bean.getState())) {
 				// 更新用户余额
 				memberDaoImpl.updateUserBalance(orderform.getCustomerId(), money);
 				// 插入使用会员余额记录
@@ -284,7 +308,7 @@ public class OrderServiceImpl implements OrderService {
 				memberLog.setOrderType(2);
 				memberDaoImpl.insertMemberUseLog(memberLog);
 				// 给商城顾客增加存水
-
+				
 				List<OrderDetailBean> orderDetail = storeOrderDao.getOrderDetail(payCode);
 				for (OrderDetailBean orderDetailBean : orderDetail) {
 					ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(orderDetailBean.getItemId());
@@ -379,7 +403,31 @@ public class OrderServiceImpl implements OrderService {
 
 					}
 				}
-			}
+/*			if (huafaAppOpenId !=null){
+				Map<String,Object> map = new HashMap<String,Object>();
+				List<ShoppingBean> huafaList = orderDao.findShoppingBeandByOrderId(ob.getId(),ob.getType());
+				map.put("orderId",obs.getOrderId());
+				map.put("openId",huafaAppOpenId);
+				map.put("state",ob.getState());
+				map.put("nowprice",ob.getNowprice());
+				map.put("payCode",ob.getPayCode());
+				map.put("createTime",ob.getCreateTime());
+				map.put("time",ob.getCreateTime());
+				map.put("type",ob.getType());
+				map.put("useMoney",money);
+				map.put("price",ob.getPrice());
+				map.put("payType",ob.getPayType());
+				map.put("stateName",ob.getStateName());
+				map.put("ptCode",ob.getPtCode());
+				map.put("product",ob.getProduct());
+				map.put("phone",tblCustomerDao.getCustomerById(user.getId()).getPhone());
+				map.put("list",huafaList);
+				String json = JSON.toJSONString(map);//map转String
+				//JSONObject jsonObject = JSON.parseObject(json);//String转json
+				HttpUtil.post("https://devapp.huafatech.com/app/water/orderInfo/createWaterOrderInfo", json);
+				log.info("订单传输成功！！！");
+			}*/
+		}
 			if (bean.getCoupon() != 0) {
 				CouponLog couponLog = new CouponLog();
 				couponLog.setCouponCustomerId(orderform.getCustomerId());
@@ -393,6 +441,13 @@ public class OrderServiceImpl implements OrderService {
 				orderDao.updateState(orderform.getCustomerId(), bean.getCoupon());
 			}
 			shoppingCarDaoImpl.updateAllFlag(list);
+			if(ob.getPayType()==3){
+				returnDataUtil.setStatus(3);
+				returnDataUtil.setMessage("余额支付成功！");
+				Map<String, Object> returnData = new HashMap<String, Object>();
+				returnDataUtil.setReturnObject(returnData);
+				return returnDataUtil;
+			}
 			returnDataUtil.setStatus(1);
 			returnDataUtil.setMessage("订单创建成功！");
 			Map<String, Object> returnData = new HashMap<String, Object>();
@@ -457,6 +512,14 @@ public class OrderServiceImpl implements OrderService {
 		log.info("after" + storeOrderFind.getTotal());
 		log.info("<OrderServiceImpl--storeOrderFind--end>");
 		return storeOrderFind;
+	}
+
+	@Override
+	public List<ShoppingBean> findShoppingBeandByOrderId(Long orderId, Integer orderType) {
+		log.info("<OrderServiceImpl--findShoppingBeandByOrderId--start>");
+		List<ShoppingBean> list = orderDao.findShoppingBeandByOrderId(orderId,orderType);
+		log.info("<OrderServiceImpl--findShoppingBeandByOrderId--end>");
+		return list;
 	}
 
 	@Override
@@ -526,6 +589,14 @@ public class OrderServiceImpl implements OrderService {
 		List<OrderDto> findOrderById = orderDao.findOrderById(customerId, type);
 		log.info("<OrderServiceImpl--findOrderById--end>");
 		return findOrderById;
+	}
+
+	@Override
+	public List<ShoppingBean> findCustomerByProduce(String product) {
+		log.info("<OrderServiceImpl--findCustomerByProduce--start>");
+		List<ShoppingBean> beans = orderDao.findCustomerByProduce(product);
+		log.info("<OrderServiceImpl--findCustomerByProduce--end>");
+		return beans;
 	}
 
 	@Override
@@ -766,6 +837,14 @@ public class OrderServiceImpl implements OrderService {
 	}
 
 	@Override
+	public String findPayCodeByOrderId(Long orderId) {
+		log.info("<OrderServiceImpl>-------<findCustomerIdByOrderId>-------start");
+		String payCode = orderDao.findPayCodeByOrderId(orderId);
+		log.info("<OrderServiceImpl>-------<findCustomerIdByOrderId>-------end");
+		return payCode;
+	}
+
+	@Override
 	public List<PayRecordItemDto> getPayRecordItemList(String payCode) {
 		log.info("<OrderServiceImpl>-------<getPayRecordItemList>-------start");
 		List<PayRecordItemDto> payRecordItemList = orderDao.getPayRecordItemList(payCode);
@@ -822,10 +901,32 @@ public class OrderServiceImpl implements OrderService {
 	}
 
 	@Override
-	public int paySuccessStroeOrder(String outTradeNo, String transactionId, Integer type) {
+	public Integer getDistributionModelByPayCode(String payCode) {
+		log.info("<OrderServiceImpl>----<getDistributionModelByPayCode>----start>");
+		Integer companyId = orderDao.getDistributionModelByPayCode(payCode);
+		log.info("<OrderServiceImpl>----<getDistributionModelByPayCode>----end>");
+		return companyId;
+	}
+
+	@Override
+	public OrderBean getMessageByPayCode(String payCode) {
+		OrderBean orderBean = orderDao.getMessageByPayCode(payCode);
+		return orderBean;
+	}
+
+	@Override
+	public int paySuccessStroeOrder(Integer distributionModel,String outTradeNo, String transactionId, Integer type) {
 		log.info("<OrderServiceImpl>-------<paySuccessStroeOrder>-------start");
-		int result = orderDao.paySuccessStroeOrder(outTradeNo, transactionId, type);
+		int result = orderDao.paySuccessStroeOrder(distributionModel,outTradeNo, transactionId, type);
 		log.info("<OrderServiceImpl>-------<paySuccessStroeOrder>-------end");
 		return result;
+	}
+
+	@Override
+	public boolean delivering(Long orderId) {
+		log.info("<OrderServiceImpl>-------<delivering>-------start");
+		boolean bean = orderDao.editDelivery(orderId);
+		log.info("<OrderServiceImpl>-------<delivering>-------end");
+		return bean;
 	}
 }

@@ -208,7 +208,7 @@ public class WebFilter implements Filter {
 			chain.doFilter(httpServletRequestWrapper, response);
 
 		}
-		// log.info("WebFilter---------doFilter------ end");
+		log.info("WebFilter---------doFilter------ end");
 	}
 
 	@Override

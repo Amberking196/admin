@@ -42,4 +42,7 @@ public interface TblCustomerWxService {
 	 * @date: 2018/12/1 15:23
 	 */
 	public List<TblCustomerWxBean> myInviteRewards();
+
+
+
 }

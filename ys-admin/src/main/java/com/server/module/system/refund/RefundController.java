@@ -243,8 +243,9 @@ public class RefundController {
 				bean = customerService.findCustomerById(findOrder.getCustomerId());
 			}
 			// 得到本次充值金额 和退款金额 计算最终余额--退款金额
+			//50 100 50
 			BigDecimal price = findOrder.getPrice().subtract(refundDto.getRefundPrice());
-			BigDecimal calculate = ArithmeticUtil.calculate(findOrder.getPrice())
+/*			BigDecimal calculate = ArithmeticUtil.calculate(findOrder.getPrice())
 					.subtract(ArithmeticUtil.calculate(price));
 			// 得到本次实际应扣除用户余额
 			BigDecimal sumPrice = refundDto.getRefundPrice().add(calculate);
@@ -254,7 +255,11 @@ public class RefundController {
 					result = findOrder.getPrice();
 				}
 				return ResultUtil.error(0, "用户余额不足，不支持本次退款!本次最大退款额度为" + result, null);
-			}
+			}*/
+			int a=price.compareTo(BigDecimal.ZERO);
+			if (a  == -1) {
+				return ResultUtil.error(0, "用户余额不足，不支持本次退款!本次最大退款额度为" + findOrder.getPrice(), null);
+		    }
 		}
 		Integer platform = findOrder.getPayType();
 		refundDto.setPtCode(findOrder.getPtCode());

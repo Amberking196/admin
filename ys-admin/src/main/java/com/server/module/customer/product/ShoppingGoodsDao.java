@@ -16,7 +16,12 @@ public interface ShoppingGoodsDao {
 	 * @return
 	 */
 	public ReturnDataUtil listPage(ShoppingGoodsForm shoppingGoodsForm);
-
+	/**
+	 * 查询商城商品套餐列表
+	 * @param shoppingGoodsForm
+	 * @return
+	 */
+	public ReturnDataUtil mealListPage(ShoppingGoodsForm shoppingGoodsForm);
 	/**
 	 * 增加商城商品
 	 * @param entity

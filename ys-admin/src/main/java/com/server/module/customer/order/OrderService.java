@@ -25,6 +25,12 @@ public interface OrderService {
 	 * @return
 	 */
 	public List<OrderDto> findOrderById(Long customerId,Integer type);
+
+	/**
+	 * 根据product查找商品详情
+	 * @return
+	 */
+	public List<ShoppingBean> findCustomerByProduce(String product);
    
 	
 	/**
@@ -50,6 +56,16 @@ public interface OrderService {
 
 
 	public ReturnDataUtil storeOrderFind(OrderForm orderform);
+
+	/**
+	 * 查询订单详情   pic返回完整路径
+	 * @author HHH
+	 * @date 2018年11月14日 下午4:20:48
+	 * @param orderId
+	 * @param orderType
+	 * @return
+	 */
+	public List<ShoppingBean> findShoppingBeandByOrderId(Long orderId,Integer orderType);
    
 
 	/**
@@ -101,11 +117,20 @@ public interface OrderService {
 	/**
 	 * 根据openID 查询用户id
 	 * @author why
-	 * @date 2018年10月23日 下午10:33:28 
+	 * @date 2018年10月23日 下午10:33:28
 	 * @param openId
 	 * @return
 	 */
 	public Long findCustomerIdByOpenId(String openId);
+
+	/**
+	 * 根据orderId 查询订单paycode
+	 * @author HHH
+	 * @date 2020年2月28日00:28:45
+	 * @param orderId
+	 * @return
+	 */
+	public String findPayCodeByOrderId(Long orderId);
 	
 	/**
 	 * 获取订单商品详情
@@ -171,6 +196,24 @@ public interface OrderService {
 	 * @return
 	 */
 	public Integer getCompanyIdByPayCode(String payCode);
+
+	/**
+	 * 根据payCode查询订单的配送方式
+	 * @author why
+	 * @date 2019年3月16日 上午11:31:36
+	 * @param payCode
+	 * @return
+	 */
+	public Integer getDistributionModelByPayCode(String payCode);
+
+	/**
+	 * 根据payCode查询订单的部分信息
+	 * @author hhh
+	 * @date 2019年3月16日 上午11:31:36
+	 * @param payCode
+	 * @return
+	 */
+	public OrderBean getMessageByPayCode(String payCode);
 	
 	
 	/**
@@ -183,6 +226,12 @@ public interface OrderService {
 	 * @param type
 	 *            0 普通订单 其他为团购订单
 	 */
-	public int paySuccessStroeOrder(String outTradeNo, String transactionId, Integer type);
-	
+	public int paySuccessStroeOrder(Integer distributionModel,String outTradeNo, String transactionId, Integer type);
+
+
+	/**
+	 *  更新用户订单配送状态
+	 * @return
+	 */
+	public boolean delivering(Long orderId);
 }

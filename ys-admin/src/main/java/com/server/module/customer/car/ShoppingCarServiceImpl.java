@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import com.server.module.customer.product.ShoppingGoodsBean;
 import com.server.module.customer.product.ShoppingGoodsDao;
+import com.server.module.customer.product.ShoppingGoodsMeal;
+import com.server.module.customer.product.ShoppingGoodsMealDao;
 import com.server.module.sys.utils.UserUtils;
 import com.server.module.system.warehouseManage.stock.WarehouseStockDao;
 import com.server.util.ReturnDataUtil;
@@ -30,7 +32,8 @@ public class  ShoppingCarServiceImpl  implements ShoppingCarService{
 	private WarehouseStockDao warehouseStockDaoImpl;
 	@Autowired
 	private ShoppingGoodsDao shoppingGoodsDaoImpl;
-	
+	@Autowired
+	private ShoppingGoodsMealDao shoppingGoodsMealDaoImpl;
 	public ReturnDataUtil listPage(ShoppingCarForm shoppingCarForm){
 		log.info("<ShoppingCarServiceImpl>------<listPage>-----start");
 		ReturnDataUtil listPage = shoppingCarDaoImpl.listPage(shoppingCarForm);
@@ -38,21 +41,31 @@ public class  ShoppingCarServiceImpl  implements ShoppingCarService{
 		return listPage;
 	}
 
-
 	public ReturnDataUtil add(ShoppingCarForm shoppingCarForm,ShoppingCarBean newShoppingCarBean) {
 		log.info("<ShoppingCarServiceImpl>------<add>-----start");
 		ReturnDataUtil returnDataUtil=shoppingCarDaoImpl.listPage(shoppingCarForm);
 		//已在购物车的商品
+		boolean update=false;
 		List<ShoppingCarBean> shoppingCarBeanList= (List<ShoppingCarBean>) returnDataUtil.getReturnObject();
 		if(shoppingCarBeanList!=null && shoppingCarBeanList.size()>0) {
 			Boolean flag=false;
 			for(ShoppingCarBean shoppingCarBean:shoppingCarBeanList) {
 				if(shoppingCarBean.getItemId().intValue() == newShoppingCarBean.getItemId().intValue()) {
 					log.info("相同商品增加数量");
-					shoppingCarBean.setNum(shoppingCarBean.getNum()+newShoppingCarBean.getNum());
-					shoppingCarBean.setUpdateTime(new Date());
-					shoppingCarBean.setUpdateUser(UserUtils.getUser().getId());
-					boolean update=update(shoppingCarBean);
+					if(newShoppingCarBean.getMealId() != null)  {
+						if( newShoppingCarBean.getMealId().equals(shoppingCarBean.getMealId())){
+							shoppingCarBean.setNum(shoppingCarBean.getNum()+newShoppingCarBean.getNum());
+							shoppingCarBean.setUpdateTime(new Date());
+							shoppingCarBean.setUpdateUser(UserUtils.getUser().getId());
+							 update=update(shoppingCarBean);
+						}
+					}else if(shoppingCarBean.getMealId()==null){
+						shoppingCarBean.setNum(shoppingCarBean.getNum()+newShoppingCarBean.getNum());
+						shoppingCarBean.setUpdateTime(new Date());
+						shoppingCarBean.setUpdateUser(UserUtils.getUser().getId());
+						 update=update(shoppingCarBean);
+					}
+
 					if (update) {
 						returnDataUtil.setReturnObject(true);
 						returnDataUtil.setStatus(1);
@@ -68,9 +81,17 @@ public class  ShoppingCarServiceImpl  implements ShoppingCarService{
 			}
 			if(flag==false) {
 				newShoppingCarBean.setCreateUser(UserUtils.getUser().getId());
-				ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(newShoppingCarBean.getItemId());
-				newShoppingCarBean.setPrice(shoppingGoodsBean.getSalesPrice());
-				newShoppingCarBean.setItemName(shoppingGoodsBean.getName());
+
+				if(newShoppingCarBean.getMealId()!=null) {
+					//查询套餐名称与价格
+					ShoppingGoodsMeal shoppingGoodsMeal=shoppingGoodsMealDaoImpl.get(newShoppingCarBean.getMealId());
+					newShoppingCarBean.setPrice(shoppingGoodsMeal.getPrice());
+					newShoppingCarBean.setItemName(shoppingGoodsMeal.getName());
+				}else {
+					ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(newShoppingCarBean.getItemId());
+					newShoppingCarBean.setPrice(shoppingGoodsBean.getSalesPrice());
+					newShoppingCarBean.setItemName(shoppingGoodsBean.getName());
+				}
 				ShoppingCarBean sc=insert(newShoppingCarBean);
 				if (sc!=null) {
 					returnDataUtil.setReturnObject(true);
@@ -85,10 +106,16 @@ public class  ShoppingCarServiceImpl  implements ShoppingCarService{
 		}
 		else {
 			newShoppingCarBean.setCreateUser(UserUtils.getUser().getId());
-			ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(newShoppingCarBean.getItemId());
-			log.info("----"+shoppingGoodsBean.getName());
-			newShoppingCarBean.setPrice(shoppingGoodsBean.getSalesPrice());
-			newShoppingCarBean.setItemName(shoppingGoodsBean.getName());
+			if(newShoppingCarBean.getMealId()!=null) {
+				//查询套餐名称与价格
+				ShoppingGoodsMeal shoppingGoodsMeal=shoppingGoodsMealDaoImpl.get(newShoppingCarBean.getMealId());
+				newShoppingCarBean.setPrice(shoppingGoodsMeal.getPrice());
+				newShoppingCarBean.setItemName(shoppingGoodsMeal.getName());
+			}else {
+				ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(newShoppingCarBean.getItemId());
+				newShoppingCarBean.setPrice(shoppingGoodsBean.getSalesPrice());
+				newShoppingCarBean.setItemName(shoppingGoodsBean.getName());
+			}
 			ShoppingCarBean scb=shoppingCarDaoImpl.insert(newShoppingCarBean);
 			if (scb!=null) {
 				returnDataUtil.setReturnObject(true);
@@ -111,12 +138,20 @@ public class  ShoppingCarServiceImpl  implements ShoppingCarService{
 		Long userId=UserUtils.getUser().getId();
 		newShoppingCarBean.setCreateUser(userId);
 		newShoppingCarBean.setUpdateUser(userId);
-		ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(newShoppingCarBean.getItemId());
-		newShoppingCarBean.setPrice(shoppingGoodsBean.getSalesPrice());
-		newShoppingCarBean.setItemName(shoppingGoodsBean.getName());
+		
+		if(newShoppingCarBean.getMealId()!=null) {
+			//查询套餐名称与价格
+			ShoppingGoodsMeal shoppingGoodsMeal=shoppingGoodsMealDaoImpl.get(newShoppingCarBean.getMealId());
+			newShoppingCarBean.setPrice(shoppingGoodsMeal.getPrice());
+			newShoppingCarBean.setItemName(shoppingGoodsMeal.getName());
+		}else {
+			ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(newShoppingCarBean.getItemId());
+			newShoppingCarBean.setPrice(shoppingGoodsBean.getSalesPrice());
+			newShoppingCarBean.setItemName(shoppingGoodsBean.getName());
+		}
 		newShoppingCarBean.setDeleteFlag(1);
 		newShoppingCarBean.setCustomerId(userId);
-
+		
 		ShoppingCarBean scb=shoppingCarDaoImpl.insert(newShoppingCarBean);
 		if (scb!=null) {
 			returnDataUtil.setReturnObject(scb);

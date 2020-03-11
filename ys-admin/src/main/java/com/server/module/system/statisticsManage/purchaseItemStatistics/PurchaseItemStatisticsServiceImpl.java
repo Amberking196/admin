@@ -119,7 +119,11 @@ public class PurchaseItemStatisticsServiceImpl implements PurchaseItemStatistics
 				sumQuantity=pisb.getSumQuantity()+entity.getQuantity();
 			}
 			d = d.add(sumPrice);
-			pisb.setAvgPrice(d.divide(new BigDecimal(sumQuantity), 2, BigDecimal.ROUND_HALF_UP).doubleValue());
+			if(sumQuantity==0){
+				pisb.setAvgPrice(0D);
+			}else{
+				pisb.setAvgPrice(d.divide(new BigDecimal(sumQuantity), 2, BigDecimal.ROUND_HALF_UP).doubleValue());
+			}
 			pisb.setSumQuantity(sumQuantity);
 			return(purchaseItemStatisticsDaoImpl.update(pisb));
 			

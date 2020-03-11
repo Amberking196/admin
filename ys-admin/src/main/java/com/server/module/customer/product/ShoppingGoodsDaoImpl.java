@@ -156,6 +156,65 @@ public class ShoppingGoodsDaoImpl extends BaseDao<ShoppingGoodsBean> implements 
 	}
 
 	/**
+	 * 后台查询商城商品列表
+	 */
+	@Override
+	public ReturnDataUtil mealListPage(ShoppingGoodsForm shoppingGoodsForm) {
+		log.info("<ShoppingGoodsDaoImpl>-----<mealListPage>----start");
+		ReturnDataUtil data = new ReturnDataUtil();
+		StringBuilder sql = new StringBuilder();
+		sql.append(" select * from shopping_goods_meal ");
+		sql.append(" where 1=1 ");
+		if(shoppingGoodsForm.getGoodsId()!=null){
+			sql.append(" and goodsId="+shoppingGoodsForm.getGoodsId());
+		}
+
+		Connection conn = null;
+		PreparedStatement pst = null;
+		ResultSet rs = null;
+		log.info("商城商品套餐查询列表sql:" + sql.toString());
+		try {
+			conn = openConnection();
+			pst = conn.prepareStatement(super.countSql(sql.toString()));
+			rs = pst.executeQuery();
+			long count = 0;
+			while (rs.next()) {
+				count = rs.getInt(1);
+			}
+			long off = (shoppingGoodsForm.getCurrentPage() - 1) * shoppingGoodsForm.getPageSize();
+			pst = conn.prepareStatement(sql.toString() + " limit " + off + "," + shoppingGoodsForm.getPageSize());
+			rs = pst.executeQuery();
+			List<ShoppingGoodsMeal> list = Lists.newArrayList();
+			int number = 0;
+			while (rs.next()) {
+				number++;
+				ShoppingGoodsMeal bean = new ShoppingGoodsMeal();
+				bean.setId(rs.getLong("id"));
+				bean.setName(rs.getString("name"));
+				bean.setPic(rs.getString("pic"));
+				bean.setNum(rs.getInt("num"));
+				bean.setPrice(rs.getBigDecimal("price"));
+				bean.setGoodsId(rs.getInt("goodsId"));
+				log.info(rs.getInt("goodsId"));
+				list.add(bean);
+			}
+			data.setCurrentPage(shoppingGoodsForm.getCurrentPage());
+			data.setTotal(count);
+			data.setReturnObject(list);
+			data.setStatus(1);
+			log.info("<ShoppingGoodsDaoImpl>-----<mealListPage>----end");
+			return data;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			log.error(e.getMessage());
+			log.info("<ShoppingGoodsDaoImpl>-----<mealListPage>----end");
+			return data;
+		} finally {
+			this.closeConnection(rs, pst, conn);
+		}
+	}
+
+	/**
 	 * 商城商品详情查看
 	 */
 	@Override
@@ -447,16 +506,16 @@ public class ShoppingGoodsDaoImpl extends BaseDao<ShoppingGoodsBean> implements 
 		sql.append(" sg.createUser,sg.updateTime,sg.updateUser,sg.deleteFlag,sg.costPrice,sg.salesPrice,sg.preferentialPrice,sg.basicItemId,sg.quantity,sg.purchaseNotes, ");
 		sql.append(" sg.commodityParameters,sg.advertisingPic,sg.isHelpOneself,sg.activityId,sgs.id sId,sgs.theme,sgs.spellGroupPrice ");
 		sql.append(" from shopping_goods sg left join shopping_goods_spellgroup sgs on sg.id=sgs.goodsId and endTime>now() and sgs.deleteFlag=0 where 1=1 and sg.deleteFlag=0  ");
-		if(vendingMachinesInfoBean==null) {
+		/*if(vendingMachinesInfoBean==null) {
 			sql.append(" and target = 0");
-		}else{
+		}else{*/
 			sql.append(" and (target = 1 and FIND_IN_SET(84,getChildList(companyId)) ");
 			sql.append("OR FIND_IN_SET(118, getChildList(companyId))");
 			sql.append("OR FIND_IN_SET(131, getChildList(companyId))");
-			sql.append(" or target = 2 and FIND_IN_SET("+vendingMachinesInfoBean.getCompanyId()+",getChildList(companyId))  and areaId='"+vendingMachinesInfoBean.getAreaId()+"'  ");
-			sql.append(" or target = 3 and  FIND_IN_SET("+vendingMachinesInfoBean.getCode()+",sg.vmCode)");
+			sql.append(" or target = 2 and FIND_IN_SET(83,getChildList(companyId))  and areaId='19'  ");
+			sql.append(" or target = 3 and  FIND_IN_SET(1999000111,sg.vmCode)");
 			sql.append(" or target = 0 )");
-		}
+		//}
 		if (shoppingGoodsForm.getType() != null) {
 			// 首页商品
 			if (shoppingGoodsForm.getType() == 1) {
@@ -480,7 +539,7 @@ public class ShoppingGoodsDaoImpl extends BaseDao<ShoppingGoodsBean> implements 
 			sql.append(" and sg.state=5100 and sg.activityId="+shoppingGoodsForm.getItemType()+" ");
 
 		}
-		sql.append("and ((sg.companyId = 83) or (sg.companyId = 84) or (sg.companyId = 131) or (sg.companyId = 118))");
+		sql.append("and ((sg.companyId = 83) or (sg.companyId = 84) or (sg.companyId = 131) or (sg.companyId = 118) or (sg.companyId = 169))");
 		sql.append(" order by sg.activityId asc, sg.createTime desc  ");
 		Connection conn = null;
 		PreparedStatement pst = null;
@@ -606,11 +665,11 @@ public class ShoppingGoodsDaoImpl extends BaseDao<ShoppingGoodsBean> implements 
 		if(shoppingGoodsBean.getIsConglomerateCommodity()==1) {
 			sql.append(" select count(1) salesQuantity,count(1) purchaseTime from tbl_customer_spellgroup where state=1 and goodsId='" + goodsId + "'  "); 
 		}else {
-		sql.append(" select sum(sod.num) salesQuantity ,count(sod.itemId) purchaseTime  ");
-		sql.append(" from shopping_goods sg left JOIN store_order_detile sod on sg.id = sod.itemId ");
-		sql.append("  left join store_order so on sod.orderId = so.id ");
-		sql.append(" where so.state = '10001' and sg.id='" + goodsId + "' ");
-		sql.append(" group by sg.id ");
+			sql.append(" select sum(sod.num) salesQuantity ,count(sod.itemId) purchaseTime  ");
+			sql.append(" from shopping_goods sg left JOIN store_order_detile sod on sg.id = sod.itemId ");
+			sql.append("  left join store_order so on sod.orderId = so.id ");
+			sql.append(" where so.state = '10001' and sg.id='" + goodsId + "' ");
+			sql.append(" group by sg.id ");
 		}
 		Connection conn = null;
 		PreparedStatement pst = null;

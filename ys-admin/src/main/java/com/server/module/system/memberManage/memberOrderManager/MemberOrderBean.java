@@ -45,9 +45,13 @@ public class MemberOrderBean {
 	private String friendPhone;
 	//退款时间
 	private Date refundTime;
+	//货道
+	private String wayNumber;
+
 	//公司名称
 	@NotField
 	private String companyName;
+
 
 	private Integer type;//0 充值 1捐献
 
@@ -98,5 +102,10 @@ public class MemberOrderBean {
 		}
 		return "";
 	}
+
+	@NotField
+	public String receiver;
+	@NotField
+	public String address;
 
 }

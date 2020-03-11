@@ -47,7 +47,15 @@ public class MyWXRequest {
 	//附加数据
 	private String attach;
 	
+	private String scene_info;
 	
+	
+	public String getScene_info() {
+		return scene_info;
+	}
+	public void setScene_info(String scene_info) {
+		this.scene_info = scene_info;
+	}
 	public String getAttach() {
 		return attach;
 	}

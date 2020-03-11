@@ -129,6 +129,7 @@ public class PayRecordController {
 		return payRecordService.findVisionPayRecord(payRecordForm);
 	}
 	
+	
 	@PostMapping("/exportVision")
 	public void exportVisionPayRecord(@RequestBody(required = false) PayRecordForm payRecordForm,
 			HttpServletResponse response, HttpServletRequest request) {
@@ -149,8 +150,16 @@ public class PayRecordController {
 		List<PayRecordDto> data  = payRecordDao.findVisionPayRecord(payRecordForm);
 		for (PayRecordDto payRecordDto : data) {
 			if(StringUtils.isNotBlank(payRecordDto.getItemName())) {
+				//农夫山泉天然水5L*2,怡宝纯净水4.5L*2,怡宝纯净水4.5L*3
+				//农夫山泉天然水5L*2,怡宝纯净水4.5L*2
+				//农夫山泉天然水5L*2
 				String[] strings=payRecordDto.getItemName().split("\\*");
-				payRecordDto.setItemName(strings[0]);
+				String a=strings[0];
+				for(int i=2;i<strings.length;i++) {
+					String[] b=strings[i-1].split(",");
+					a=a+","+b[1];
+				}
+				payRecordDto.setItemName(a);
 			}
 			payRecordDto.setItemType(ItemTypeEnum.getItemTypeInfo(payRecordDto.getItemTypeId()));
 			payRecordDto.setPayType(PayTypeEnum.getPayTypeInfo(payRecordDto.getPayTypeId()));

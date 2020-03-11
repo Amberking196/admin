@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>ys-admin</groupId>
 	<artifactId>ys-admin</artifactId> 
-	<version>20200115-2-SNAPSHOT</version>
+	<version>20200309-1-SNAPSHOT</version>
 	<name>ys-admin</name>
 	<description>优水后台管理系统</description>
 	<packaging>jar</packaging>
@@ -164,7 +164,10 @@
 		<!-- log4j日志 -->
  
   
-
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+		</dependency>
 
 		<!-- common -->
 
@@ -244,17 +247,14 @@
 			<artifactId>qrcode</artifactId>
 			<version>0.1.7</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.alipay.sdk/alipay-sdk-java -->
+
 		<dependency>
 			<groupId>com.alipay.sdk</groupId>
 			<artifactId>alipay-sdk-java</artifactId>
 			<version>4.3.0.ALL</version>
 		</dependency>
-<!-- 		<dependency>
-			<groupId>alipay-logging</groupId>
-			<artifactId>commons-logging</artifactId>
-			<version>1.1.1</version>
-		</dependency> -->
+
+
 		<dependency>
 			<groupId>cn.springboot</groupId>
 			<artifactId>best-pay-sdk</artifactId>
@@ -289,6 +289,12 @@
 			<artifactId>spring-boot-starter-thymeleaf</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>net.minidev</groupId>
+			<artifactId>json-smart</artifactId>
+			<version>2.3</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<version>1.16.18</version>
@@ -301,7 +307,10 @@
             <scope>compile</scope>
         </dependency>
 
-    </dependencies>
+	</dependencies>
+
+
+
 	
     <build>
         <plugins>

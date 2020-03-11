@@ -4,10 +4,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
@@ -73,6 +70,9 @@ public class ShoppingGoodsController {
 	private VendingMachinesInfoService vendingMachinesInfoService;
 	@Autowired
 	private RedisClient redisClient;
+	@Autowired
+	private ShoppingGoodsMealDao shoppingGoodsMealDao;
+
 	
 	@ApiOperation(value = "商城商品列表", notes = "listPage", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@PostMapping(value = "/listPage", produces = "application/json;charset=UTF-8")
@@ -87,6 +87,56 @@ public class ShoppingGoodsController {
 		return returnDataUtil;
 	}
 
+	@ApiOperation(value = "商城商品列表", notes = "listPageDetail", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@PostMapping(value = "/listPageDetail", produces = "application/json;charset=UTF-8")
+	public ReturnDataUtil listPageDetail(@RequestBody(required = false) ShoppingGoodsForm shoppingGoodsForm) {
+		log.info("<ShoppingGoodsController>----<listPage>----start");
+		ReturnDataUtil returnDataUtil=new ReturnDataUtil();
+		if (shoppingGoodsForm == null) {
+			shoppingGoodsForm = new ShoppingGoodsForm();
+		}
+		returnDataUtil = shoppingGoodsServiceImpl.mealListPage(shoppingGoodsForm);
+		log.info("<ShoppingGoodsController>----<listPage>----end");
+		return returnDataUtil;
+	}
+
+	@ApiOperation(value = "修改商城商品套餐", notes = "saveMeal", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@PostMapping(value = "/saveMeal", produces = "application/json;charset=UTF-8")
+	public ReturnDataUtil saveMeal(@RequestBody ShoppingGoodsMealList shoppingGoodsMealList) {
+		log.info("<ShoppingGoodsController>----<listPage>----start");
+		ReturnDataUtil returnDataUtil=new ReturnDataUtil();
+
+		List<ShoppingGoodsMeal> newList=shoppingGoodsMealList.getShoppingGoodsMeal();
+		ShoppingGoodsForm shoppingGoodsForm=new ShoppingGoodsForm();
+		shoppingGoodsForm.setGoodsId(shoppingGoodsMealList.getGoodsId());
+		Set<Integer> oldSet=new HashSet<Integer>();
+		//用来保存查询传入的结果Id
+		Set<Integer> newSet=new HashSet<Integer>();
+
+		List<ShoppingGoodsMeal> oldList= (List<ShoppingGoodsMeal>)shoppingGoodsServiceImpl.mealListPage(shoppingGoodsForm).getReturnObject();
+
+		for(ShoppingGoodsMeal s:newList){
+			if(s.getId()==null){
+				shoppingGoodsMealDao.insert(s);
+			}
+			newSet.add(s.getId().intValue());
+			for(ShoppingGoodsMeal s1:oldList){
+				oldSet.add(s1.getId().intValue());
+				if (s.getId().equals(s1.getId())) {
+					shoppingGoodsMealDao.update(s);
+				}
+			}
+		}
+
+		//求差集  进行删除
+		oldSet.removeAll(newSet);
+		for (Integer i : oldSet) {
+			shoppingGoodsMealDao.delete(i);
+		}
+
+		log.info("<ShoppingGoodsController>----<listPage>----end");
+		return returnDataUtil;
+	}
 
 	@ApiOperation(value = "商城商品添加", notes = "add", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@PostMapping(value = "/add", produces = "application/json;charset=UTF-8")
@@ -455,12 +505,18 @@ public class ShoppingGoodsController {
 				returnDataUtil.setMessage("从redis中查询成功！！！");
 				returnDataUtil.setReturnObject(JSON.parseArray(shoppingGoods));
 			}
-			else if (shoppingGoods ==null && shoppingGoodsForm == null){
+			else if (shoppingGoods ==null ){
 				// 查询列表数据，并写入 redis
-			    shoppingGoodsForm = new ShoppingGoodsForm();
-				returnDataUtil.setMessage("查询列表数据，并写入 redis");
-				returnDataUtil = shoppingGoodsServiceImpl.huaFaAppList(shoppingGoodsForm);
-				redisClient.set(key,JSON.toJSONString(returnDataUtil.getReturnObject()));
+			    if (shoppingGoodsForm ==null){
+					shoppingGoodsForm = new ShoppingGoodsForm();
+					returnDataUtil.setMessage("查询列表数据，并写入 redis");
+					returnDataUtil = shoppingGoodsServiceImpl.huaFaAppList(shoppingGoodsForm);
+					redisClient.set(key,JSON.toJSONString(returnDataUtil.getReturnObject()));
+				}else{
+					returnDataUtil.setMessage("查询列表数据，并写入 redis");
+					returnDataUtil = shoppingGoodsServiceImpl.huaFaAppList(shoppingGoodsForm);
+					redisClient.set(key,JSON.toJSONString(returnDataUtil.getReturnObject()));
+				}
 		}
 		log.info("<ShoppingGoodsController>----<huaFaAppList>----end");
 		return returnDataUtil;

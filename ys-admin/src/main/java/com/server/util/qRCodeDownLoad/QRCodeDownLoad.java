@@ -87,7 +87,7 @@ public class QRCodeDownLoad {
 	public static void main(String Args[]) {
 		CodeDecoder decoder = new CodeDecoder();
 		//String result = decoder.decode(input);
-		String code="1991000012";
+		String code="1991000014";
 		String path="d://codeImg/";
 		CodeCreator creator = new CodeCreator();
 		CodeModel info = new CodeModel();

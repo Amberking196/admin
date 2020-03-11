@@ -73,7 +73,7 @@ public interface OrderDao {
     
 	/**
 	 *  用户订单修改
-	 * @param  orderform
+	 * @param  ob
 	 * @return
 	 */
 
@@ -185,6 +185,16 @@ public interface OrderDao {
 	 * @return
 	 */
    public List<ShoppingBean> findOrderIdByShoppingBean(Long orderId,Integer orderType);
+
+	/**
+	 * 查询订单详情   pic返回完整路径
+	 * @author HHH
+	 * @date 2018年11月14日 下午4:20:48
+	 * @param orderId
+	 * @param orderType
+	 * @return
+	 */
+	public List<ShoppingBean> findShoppingBeandByOrderId(Long orderId,Integer orderType);
 	
 	/**
 	 * 获取订单商品详情
@@ -269,7 +279,7 @@ public interface OrderDao {
 	 * @param type
 	 *            0 普通订单 其他为团购订单
 	 */
-	public int paySuccessStroeOrder(String outTradeNo, String transactionId, Integer type);
+	public int paySuccessStroeOrder(Integer distributionModel,String outTradeNo, String transactionId, Integer type);
 	
 	/**
 	 * 查询用户购买商品次数
@@ -280,5 +290,39 @@ public interface OrderDao {
 	 * @return
 	 */
 	public int buyCount(Long customerId,Long goodsId);
-     
+
+	/**
+	 * 根据payCode查询订单的配送方式
+	 * @author why
+	 * @date 2019年3月16日 上午11:31:36
+	 * @param payCode
+	 * @return
+	 */
+	public Integer getDistributionModelByPayCode(String payCode);
+
+	/**
+	 *  更新用户订单配送状态
+	 * @author HHH
+	 * @param orderId
+	 * @return
+	 */
+    public boolean editDelivery(Long orderId);
+
+	/**
+	 * 根据payCode查询订单的部分信息
+	 * @author hhh
+	 * @date 2019年3月16日 上午11:31:36
+	 * @param payCode
+	 * @return
+	 */
+	public OrderBean getMessageByPayCode(String payCode);
+
+	/**
+	 * 根据orderId 查询订单PayCode
+	 * @author HHH
+	 * @date 2020年2月28日00:28:45
+	 * @param orderId
+	 * @return
+	 */
+	public String findPayCodeByOrderId(Long orderId);
 }

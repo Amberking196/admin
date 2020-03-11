@@ -106,9 +106,6 @@ public class  ShoppingCarController{
 		
 	}
 	
-	
-	
-	
 	@ApiOperation(value = "更新购物车",notes = "update",  httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@PostMapping(value = "/update", produces = "application/json;charset=UTF-8")
 	public ReturnDataUtil  update(@RequestBody  ShoppingCarBean newShoppingCarBean,HttpServletRequest request){

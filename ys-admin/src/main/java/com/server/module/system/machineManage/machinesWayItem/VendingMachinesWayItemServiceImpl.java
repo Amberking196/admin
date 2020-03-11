@@ -1,10 +1,17 @@
 package com.server.module.system.machineManage.machinesWayItem;
 
 import com.server.common.utils.excel.annotation.ExcelField;
+import com.server.module.sys.utils.UserUtils;
+import com.server.module.system.adminUser.AdminConstant;
+import com.server.module.system.adminUser.AdminUserBean;
+import com.server.module.system.adminUser.AdminUserService;
+import com.server.module.system.logsManager.operationLog.OperationLogService;
+import com.server.module.system.logsManager.operationLog.OperationsManagementLogBean;
 import com.server.module.system.replenishManage.machineHistory.VendingMachineHistoryBean;
 import com.server.module.system.replenishManage.machineHistory.VendingMachineHistoryService;
 import com.server.redis.RedisClient;
 
+import com.server.util.DateUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -56,7 +63,11 @@ public class VendingMachinesWayItemServiceImpl implements VendingMachinesWayItem
 	private RedisClient redisClient;
 	@Autowired
 	private VendingMachinesInfoService vendingMachinesInfoService;
-	
+	@Autowired
+	private AdminUserService adminUserServiceImpl;
+	@Autowired
+	private OperationLogService operationLogServiceImpl;
+
 	public ReturnDataUtil listPage(VendingMachinesWayItemCondition condition) {
 		return vendingMachinesWayItemDaoImpl.listPage(condition);
 	}
@@ -188,6 +199,23 @@ public class VendingMachinesWayItemServiceImpl implements VendingMachinesWayItem
 			bean.setState(30001);
 			bean.setUpdateTime(new Date());
 			boolean update = vendingMachinesWayDao.update(bean);
+
+			Long userId = UserUtils.getUser().getId();
+			ReturnDataUtil returnDataUtil = adminUserServiceImpl.findUserById(userId);
+			AdminUserBean userBean = (AdminUserBean) returnDataUtil.getReturnObject();
+			OperationsManagementLogBean logBean = new OperationsManagementLogBean();
+			logBean.setCompanyId(userBean.getCompanyId());
+			logBean.setUserName(userBean.getName());
+			logBean.setVmCode(bean.getVendingMachinesCode());
+			if (bean.getState() == 30003) {
+				logBean.setContent("禁用收货机" + bean.getVendingMachinesCode() + "的" + bean.getWayNumber() + "货道");
+			}
+			if (bean.getState() == 30001) {
+				logBean.setContent("启用收货机" + bean.getVendingMachinesCode() + "的" + bean.getWayNumber() + "货道");
+			}
+			logBean.setOperationTime(DateUtil.formatYYYYMMDDHHMMSS(new Date()));
+			// 增加操作日志
+			operationLogServiceImpl.add(logBean);
 		}
 		data.setReturnObject(flag);
 		return data;

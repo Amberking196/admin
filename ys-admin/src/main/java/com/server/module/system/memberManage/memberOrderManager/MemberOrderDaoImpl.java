@@ -19,6 +19,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Repository;
+
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.server.util.ReturnDataUtil;
 import java.util.List;
@@ -39,8 +41,9 @@ public class MemberOrderDaoImpl extends BaseDao<MemberOrderBean> implements Memb
 		log.info("<MemberOrderDaoImpl>-----<listPage>------start");
 		ReturnDataUtil data = new ReturnDataUtil();
 		StringBuilder sql = new StringBuilder();
-		sql.append("select mo.id,mo.customerId,tbl.phone,mo.price,mo.state,mo.ptCode,mo.payCode,mo.createTime,mo.payTime,mo.updateTime,c.name from member_order mo ");
+		sql.append("select * from (select tca.receiver,tca.name as address,mo.id,mo.customerId,tbl.phone,mo.price,mo.state,mo.ptCode,mo.payCode,mo.createTime,mo.payTime,mo.updateTime,c.name from member_order mo ");
 		sql.append(" left join tbl_customer tbl on mo.customerId=tbl.id ");
+		sql.append(" left join tbl_customer_address tca on tca.customerId=tbl.id ");
 		sql.append(" left join vending_machines_info vmi on tbl.vmCode=vmi.code left join company c on vmi.companyId=c.id where 1=1  ");
 		if(StringUtil.isNotBlank(memberOrderForm.getPhone())) {
 			sql.append(" and tbl.phone='"+memberOrderForm.getPhone().trim()+"' ");
@@ -54,14 +57,15 @@ public class MemberOrderDaoImpl extends BaseDao<MemberOrderBean> implements Memb
 		if (memberOrderForm.getEndTime() != null) {
 			sql.append(" and mo.createTime < '" + DateUtil.formatLocalYYYYMMDDHHMMSS(memberOrderForm.getEndTime(), 1) + "' ");
 		}
-		sql.append(" order by mo.createTime desc ");
+		sql.append(" order by mo.createTime  desc )A group by A.id ORDER BY createTime desc");
 		Connection conn = null;
 		PreparedStatement pst = null;
 		ResultSet rs = null;
 		log.info("会员订单列表sql语句::="+sql.toString());
 		try {
 			conn = openConnection();
-			pst = conn.prepareStatement(super.countSql(sql.toString()));
+			String q = "select count(*) from ( "+sql.toString() +" )B";
+			pst = conn.prepareStatement(q);
 			rs = pst.executeQuery();
 			long count = 0;
 			while (rs.next()) {
@@ -90,6 +94,8 @@ public class MemberOrderDaoImpl extends BaseDao<MemberOrderBean> implements Memb
 				bean.setCreateTimeLabel(rs.getTimestamp("createTime"));
 				bean.setPayTimeLabel(rs.getTimestamp("payTime"));
 				bean.setCompanyName(rs.getString("name"));
+				bean.setReceiver(rs.getString("receiver"));
+				bean.setAddress(rs.getString("address"));
 				if (bean.getState() == 10001) {
 					bean.setStateName("已支付");
 				}

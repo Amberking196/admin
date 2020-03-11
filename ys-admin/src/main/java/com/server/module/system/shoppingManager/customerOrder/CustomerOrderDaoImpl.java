@@ -50,7 +50,8 @@ public class CustomerOrderDaoImpl extends BaseDao<CustomerOrderBean> implements 
         	if(StringUtil.isNotBlank(orderForm.getPhone())) {
            	 sql.append(" left join tbl_customer  t on so.customerId=t.id  ");
         	}
-        	if(StringUtil.isNotBlank(orderForm.getItemName())) {
+        	if(StringUtil.isNotBlank(orderForm.getItemName()) || UserUtils.getUser().getId()==401L || UserUtils.getUser().getId()==736L)
+        	{
              sql.append(" left join store_order_detile  sod on so.id=sod.orderId ");
             }
         	sql.append(" where 1=1 ");
@@ -84,7 +85,12 @@ public class CustomerOrderDaoImpl extends BaseDao<CustomerOrderBean> implements 
             }
         }
         //权限控制
-        sql.append(" and so.customerId in (select id from tbl_customer t left join vending_machines_info  vmi on  t.vmCode=vmi.code where vmi.companyId in "+companyDaoImpl.findAllSonCompanyIdForInSql(UserUtils.getUser().getCompanyId())+" )");  
+        if( UserUtils.getUser().getId()==736L){
+            sql.append(" AND sod.itemName LIKE '%乔府%' group by so.id ");
+        }else{
+            sql.append(" and so.customerId in (select id from tbl_customer t left join vending_machines_info  vmi on  t.vmCode=vmi.code where vmi.companyId in "+companyDaoImpl.findAllSonCompanyIdForInSql(UserUtils.getUser().getCompanyId())+" )");
+        }
+
         sql.append(" order by createTime desc");
         Connection conn = null;
         PreparedStatement pst = null;
@@ -156,6 +162,7 @@ public class CustomerOrderDaoImpl extends BaseDao<CustomerOrderBean> implements 
         } finally {
            this.closeConnection(rs, pst, conn);
         }
+        
     }
 
     /**

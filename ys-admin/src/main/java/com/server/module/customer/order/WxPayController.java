@@ -3,15 +3,19 @@ package com.server.module.customer.order;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.server.module.customer.userInfo.TblCustomerBean;
+import com.server.module.customer.userInfo.TblCustomerService;
+import com.server.module.sys.model.User;
+import com.server.module.sys.utils.UserUtils;
+import com.server.util.HttpUtil;
+import com.server.util.ReturnDataUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -74,6 +78,8 @@ public class WxPayController {
 	@Autowired
 	private CustomerService customerService;
 	@Autowired
+	private TblCustomerService tblCustomerService;
+	@Autowired
 	private WxPayConfigFactory wxpayConfigFactory;
 	@Autowired
 	private WxTicketService wxTicketService;
@@ -108,7 +114,7 @@ public class WxPayController {
 	@ApiOperation(value = "微信支付", notes = "微信支付", httpMethod = "GET", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@GetMapping("/storeOrderPay")
 	public Map<String, Object> linkSms(OrderForm orderForm,HttpServletRequest req,HttpServletResponse response) throws Exception{
-		log.info("<WxPayController>----<linkSms>----start");
+		log.info("<WxPayController>----<storeOrderPay>----start");
 		Map<String, Object> map = Maps.newHashMap();
 		Long customerId = CustomerUtil.getCustomerId();
 		CustomerBean cus = customerService.findCustomerById(customerId);
@@ -190,7 +196,7 @@ public class WxPayController {
 	@ApiOperation(value = "微信APP支付", notes = "微信APP支付", httpMethod = "GET", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@GetMapping("/storeOrderAppPay")
 	public Map<String, Object> appLinkSms(OrderForm orderForm,HttpServletRequest req,HttpServletResponse response) throws Exception{
-		log.info("<WxPayController>----<appLinkSms>----start");
+		log.info("<WxPayController>----<storeOrderAppPay>----start");
 		Map<String, Object> map = Maps.newHashMap();
 		Long customerId = CustomerUtil.getCustomerId();
 		CustomerBean cus = customerService.findCustomerById(customerId);
@@ -207,6 +213,7 @@ public class WxPayController {
 		//String url = orderForm.getUrl();
 		redisClient.set("Price_"+customerId, id.get("nowprice").toString(),60*5);
 		//Integer companyId = orderService.getCompanyIdByPayCode(payCode);
+		companyId=76;
 		WXPay wxPay = wxpayConfigFactory.getWXPay(companyId);
 		WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
 		MyWXRequest request = new MyWXRequest();
@@ -220,13 +227,16 @@ public class WxPayController {
 				products = products + list.get(a) + ",";
 			}
 		}
+		
+		request.setScene_info("{\"h5_info\": {\"type\":\"Android\",\"app_name\": \"华发优生活\",\"package_name\": \"com.tencent.tmgp.sgame\"}}");
 		request.setAppid(wxPayConfig.getAppAppID());
 		request.setMch_id(wxPayConfig.getMchID());
 		request.setBody("优水到家-"+products);//
-		request.setTrade_type("APP");
+		request.setTrade_type("MWEB");
 		request.setNotify_url(storeAppNotify);
 		request.setNonce_str(nonce_str);
 		request.setOut_trade_no(payCode);
+		
 		BigDecimal fee = new BigDecimal(nowprice);
 		BigDecimal totalFee = fee.multiply(new BigDecimal(100));
 		request.setTotal_fee(totalFee.intValue() + "");
@@ -274,6 +284,7 @@ public class WxPayController {
 			String outTradeNo = (String) map.get("out_trade_no");
 			outTradeNo = outTradeNo.substring(0, 25);// 获取真实订单号
 			Integer companyId = orderService.getCompanyIdByPayCode(outTradeNo);
+			Integer distributionModel = orderService.getDistributionModelByPayCode(outTradeNo);
 			WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
 			String result_code = (String) map.get("result_code");
 			String transactionId = (String) map.get("transaction_id");
@@ -283,8 +294,8 @@ public class WxPayController {
 				if (("SUCCESS").equals(result_code)
 						&& !("SUCCESS").equals(redisClient.get(MachinesKey.orderFlag, outTradeNo))) {
 					redisClient.set(MachinesKey.orderFlag, outTradeNo, "SUCCESS");
-					orderService.paySuccessStroeOrder(outTradeNo, transactionId,0);
-
+					//更改订单的状态
+					orderService.paySuccessStroeOrder(distributionModel,outTradeNo, transactionId,0);
 					// 给商城顾客增加存水
 					List<OrderDetailBean> orderDetail = storeOrderServiceImpl.getOrderDetail(outTradeNo);
 					Long customerId = orderDetail.get(0).getCustomerId();
@@ -435,6 +446,213 @@ public class WxPayController {
 		}
 		return;
 	}
+
+	/**
+	 * 微信完成华发商城订单后的回调，用以确认订单是否完成支付，并更新状态，通知珠海
+	 * @param xml
+	 * @return
+	 */
+	@RequestMapping(value = "/huafaStoreNotify")
+	public void huafaPayStoreNotify(@RequestBody String xml, HttpServletResponse response) {
+		log.info("<WxPayController>----<payStoreNotify>----start");
+		String returnResult = null;
+		try {
+			Map<String, String> map = WXPayUtil.xmlToMap(xml);
+			String outTradeNo = (String) map.get("out_trade_no");
+			outTradeNo = outTradeNo.substring(0, 25);// 获取真实订单号
+			Integer companyId = orderService.getCompanyIdByPayCode(outTradeNo);
+			Integer distributionModel = orderService.getDistributionModelByPayCode(outTradeNo);
+			OrderBean ob = orderService.getMessageByPayCode(outTradeNo);
+			WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
+			String result_code = (String) map.get("result_code");
+			String transactionId = (String) map.get("transaction_id");
+			boolean b = WXPayUtil.isSignatureValid(map, wxPayConfig.getKey());
+			log.info("notify 结果:" + b);
+			if (b) {// 订单号 25位
+				if (("SUCCESS").equals(result_code)
+						&& !("SUCCESS").equals(redisClient.get(MachinesKey.orderFlag, outTradeNo))) {
+					redisClient.set(MachinesKey.orderFlag, outTradeNo, "SUCCESS");
+					//更改订单的状态couponOrderId
+					orderService.paySuccessStroeOrder(distributionModel,outTradeNo, transactionId,0);
+
+					List<OrderDetailBean> orderDetail = storeOrderServiceImpl.getOrderDetail(outTradeNo);
+					Long customerId = orderDetail.get(0).getCustomerId();
+					TblCustomerBean tbBean = tblCustomerService.getCustomerById(customerId);
+					//通知珠海订单成功支付
+					if (tbBean.getHuafaAppOpenId() !=null) {
+						Map<String, Object> huaAppMap = new HashMap<String, Object>();
+						List<ShoppingBean> newlist = orderService.findShoppingBeandByOrderId(ob.getId(),ob.getType());
+						huaAppMap.put("orderId", ob.getId());
+						huaAppMap.put("openId", tbBean.getHuafaAppOpenId());
+						huaAppMap.put("state", ob.getState());
+						huaAppMap.put("nowprice", ob.getNowprice());
+						huaAppMap.put("payCode", ob.getPayCode());
+						huaAppMap.put("createTime", ob.getCreateTime());
+						huaAppMap.put("time", new Date());
+						huaAppMap.put("type", ob.getType());
+						huaAppMap.put("useMoney", "");
+						huaAppMap.put("price", ob.getPrice());
+						huaAppMap.put("payType", ob.getPayType());
+						huaAppMap.put("stateName", ob.getStateName());
+						huaAppMap.put("ptCode", transactionId);
+						huaAppMap.put("product", ob.getProduct());
+						huaAppMap.put("phone", tbBean.getPhone());
+						huaAppMap.put("list", newlist);
+						String json = JSON.toJSONString(huaAppMap);//map转String
+						//JSONObject jsonObject = JSON.parseObject(json);//String转json
+						HttpUtil.post("https://devapp.huafatech.com/app/water/orderInfo/createWaterOrderInfo", json);
+						log.info("订单传输成功！");
+					}
+					// 给商城顾客增加存水
+					for (OrderDetailBean orderDetailBean : orderDetail) {
+						ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsService.get(orderDetailBean.getItemId().longValue());
+						// 购买优惠券不增加存水
+						if (shoppingGoodsBean.getTypeId().equals(25l)) {// 购买的商品为 优惠券此时绑定用户
+							//根据商品名称获取优惠券信息
+							CouponBean couponBean = couponService.getCouponInfoByProduct(shoppingGoodsBean);
+							//获取用户的优惠券信息
+							CouponCustomerBean couponCustomerBean = couponService.getCouponCustomerBean(customerId,
+									couponBean.getId());
+							if (couponCustomerBean != null) {//更新绑定用户的优惠券数量(仅限于购买优惠券的用户)
+								couponCustomerBean.setQuantity(couponCustomerBean.getQuantity() + orderDetailBean.getNum());
+								couponCustomerBean.setSumQuantity(couponCustomerBean.getSumQuantity() + orderDetailBean.getNum());// 券的总数
+								couponService.updateCouponCustomerBean(couponCustomerBean);
+							} else {//赠券插入
+								CouponCustomerBean couCusBean = new CouponCustomerBean();
+								couCusBean.setCouponId(couponBean.getId());
+								couCusBean.setCustomerId(customerId);
+								couCusBean.setStartTime(couponBean.getLogicStartTime());
+								couCusBean.setEndTime(couponBean.getLogicEndTime());
+								couCusBean.setState(CouponEnum.RECEIVE_COUPON.getState());// 状态：0：新建，1：领取，2：已使用
+								couCusBean.setQuantity(orderDetailBean.getNum().longValue());
+								couCusBean.setSumQuantity(orderDetailBean.getNum().longValue());// 总券数
+								couponService.insertCouponCustomer(couCusBean);
+							}
+
+						} else if (shoppingGoodsBean.getTypeId().equals(26l) || shoppingGoodsBean.getTypeId().equals(27l)) {
+							// 购买的商品为提水券 此时绑定用户
+							carryWaterVouchersCustomerServiceImpl.add(shoppingGoodsBean.getVouchersId(), customerId,
+									orderDetailBean.getNum(),orderDetailBean.getOrderId());
+						}else if (shoppingGoodsBean.getTypeId().equals(28l)) {
+							// 商品为套餐类型 绑定多张提水券
+							ShoppingGoodsBean sgs=shoppingGoodsService.get(orderDetailBean.getItemId().longValue());
+							String[] vouchers=StringUtils.split(sgs.getVouchersIds(),",");
+							for(String v:vouchers) {
+								carryWaterVouchersCustomerServiceImpl.add(Long.valueOf(v), customerId,
+										orderDetailBean.getNum(),orderDetailBean.getOrderId());
+							}
+						}
+						else {
+							if (orderDetailBean.getDistributionModel() == 1) {// 自取// 直接去给用户存水
+								CustomerStockBean stock = storeOrderServiceImpl.getStock(orderDetailBean.getItemId(),
+										orderDetailBean.getCustomerId());
+								if (stock == null) {
+									stock = new CustomerStockBean();
+									stock.setBasicItemId(shoppingGoodsBean.getBasicItemId());
+									stock.setItemId(orderDetailBean.getItemId());
+									stock.setItemName(orderDetailBean.getItemName());
+									stock.setCustomerId(orderDetailBean.getCustomerId());
+									stock.setStock(orderDetailBean.getNum());
+									stock.setPickNum(0);
+									storeOrderServiceImpl.insert(stock);
+								} else {
+									stock.setStock(stock.getStock() + orderDetailBean.getNum());
+									storeOrderServiceImpl.update(stock);
+								}
+							} else {// 非自取 判断用户购买的商品订单是否有绑定套餐 如果有 加入存水
+								// 根据商城商品id 查询绑定商品信息
+								List<ShoppingGoodsProductBean> shoppingGoodsProductBeanList = shoppingGoodsProductService
+										.getShoppingGoodsProductBean(orderDetailBean.getItemId().longValue());
+								if (shoppingGoodsProductBeanList != null && shoppingGoodsProductBeanList.size() > 0) {
+									for (ShoppingGoodsProductBean shoppingGoodsProductBean : shoppingGoodsProductBeanList) {
+										// 获取用户 拥有当前商品的存量 如果没有就新增 存在就修改
+										CustomerStockBean stock = storeOrderServiceImpl.getStock(
+												shoppingGoodsProductBean.getGoodsId().intValue(),
+												orderDetailBean.getCustomerId());
+										if (stock == null) {
+											stock = new CustomerStockBean();
+											stock.setBasicItemId(shoppingGoodsProductBean.getItemId());
+											stock.setItemId(shoppingGoodsProductBean.getGoodsId().intValue());
+											stock.setItemName(shoppingGoodsProductBean.getItemName());
+											stock.setCustomerId(orderDetailBean.getCustomerId());
+											stock.setStock(orderDetailBean.getNum()
+													* shoppingGoodsProductBean.getQuantity().intValue());
+											stock.setPickNum(0);
+											storeOrderServiceImpl.insert(stock);
+										} else {
+											int num = orderDetailBean.getNum()
+													* shoppingGoodsProductBean.getQuantity().intValue();
+											stock.setStock(stock.getStock() + num);
+											storeOrderServiceImpl.update(stock);
+										}
+									}
+
+								}
+							}
+						}
+					}
+
+					// 获取优惠券赠送客户
+					CouponForm couponForm = new CouponForm();
+					couponForm.setWay(CouponEnum.PURCHASE_COUPON.getState());
+					couponForm.setLimitRange(false);
+					couponForm.setUseWhere(CouponEnum.USE_STORE.getState());
+					List<CouponBean> presentCoupon = couponService.getPresentCoupon(couponForm);
+					if (presentCoupon != null && presentCoupon.size() > 0) {
+						presentCoupon.stream().filter(coupon -> !couponService.isReceive(customerId, coupon.getId()))
+								.forEach(coupon -> {
+									CouponCustomerBean couCusBean = new CouponCustomerBean();
+									couCusBean.setQuantity(coupon.getSendMax().longValue());
+									couCusBean.setCouponId(coupon.getId());
+									couCusBean.setCustomerId(customerId);
+									couCusBean.setStartTime(coupon.getLogicStartTime());
+									couCusBean.setEndTime(coupon.getLogicEndTime());
+									couCusBean.setState(CouponEnum.RECEIVE_COUPON.getState());// 状态：0：新建，1：领取，2：已使用
+									couponService.insertCouponCustomer(couCusBean);
+								});
+					}
+
+					// 邀请人赠券
+					CustomerBean customer = customerService.findCustomerById(customerId);
+					if (customer.getInviterId() > 0 && customerService.isFirstBuy(customer.getId()).equals(0)
+							&& customerService.isStoreFirstBuy(customer.getId()).equals(1)) {
+						CouponForm couponForm2 = new CouponForm();
+						couponForm2.setLimitRange(false);
+						couponForm2.setWay(CouponEnum.INVITE_COUPON.getState());
+						List<CouponBean> presentCoupon2 = couponService.getPresentCoupon(couponForm2);
+						if (presentCoupon2 != null && presentCoupon2.size() > 0) {
+							for (CouponBean coupon : presentCoupon2) {
+								CouponCustomerBean couCusBean = new CouponCustomerBean();
+								couCusBean.setQuantity(coupon.getSendMax().longValue());
+								couCusBean.setCouponId(coupon.getId());
+								couCusBean.setCustomerId(customer.getInviterId());
+								couCusBean.setStartTime(coupon.getLogicStartTime());
+								couCusBean.setEndTime(coupon.getLogicEndTime());
+								couCusBean.setState(CouponEnum.RECEIVE_COUPON.getState());// 状态：0：新建，1：领取，2：已使用
+								couponService.insertCouponCustomer(couCusBean);
+							}
+						}
+					}
+				}
+				returnResult = ReturnConstant.SUCCESS;
+				writeMsgToWx(returnResult, response);
+				return;
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			returnResult = ReturnConstant.FAIL;
+			writeMsgToWx(returnResult, response);
+			return;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return;
+	}
+
+
 	/**
 	 * 团购微信支付
 	 */
@@ -542,6 +760,7 @@ public class WxPayController {
 			outTradeNo = outTradeNo.substring(0, 25);// 获取真实订单号
 			Integer companyId = orderService.getCompanyIdByPayCode(outTradeNo);
 			WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
+			Integer distributionModel = orderService.getDistributionModelByPayCode(outTradeNo);
 			String result_code = (String) map.get("result_code");
 			String transactionId = (String) map.get("transaction_id");
 			boolean b = WXPayUtil.isSignatureValid(map, wxPayConfig.getKey());
@@ -550,7 +769,8 @@ public class WxPayController {
 				if (("SUCCESS").equals(result_code)
 						&& !("SUCCESS").equals(redisClient.get(MachinesKey.orderFlag, outTradeNo))) {
 					redisClient.set(MachinesKey.orderFlag, outTradeNo, "SUCCESS");
-					orderService.paySuccessStroeOrder(outTradeNo, transactionId,1);
+					//更改订单的状态
+					orderService.paySuccessStroeOrder(distributionModel,outTradeNo, transactionId,1);
 					//查询拼团订单
 					GroupOrderBean order = groupOrderServiceImpl.getStoreOrderbyOutTradeNo(outTradeNo);
 					String message = "恭喜你拼团成功，你参加购买的" + order.getGoodsName() + "提货券已经发到你的账号上了，请关注优水到家的公众号，优水商城-个人中心-我的提货券里面查看";

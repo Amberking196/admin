@@ -326,7 +326,7 @@ public class RefundDaoImpl extends MySqlFuns implements RefundDao {
 		} else if (orderType == 2) {
 			// 商城
 			sql.append(
-					" SELECT ptCode,nowprice AS price,payType FROM store_order WHERE state = 10001 AND ptCode IS NOT NULL AND payCode = '"
+					" SELECT ptCode,nowprice AS price,payType FROM store_order WHERE (state = 10001 or state = 200004) AND ptCode IS NOT NULL AND payCode = '"
 							+ payCode + "'");
 		} else if (orderType == 3) {
 			// 拼团

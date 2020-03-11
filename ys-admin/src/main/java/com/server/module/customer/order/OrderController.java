@@ -6,6 +6,9 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import com.server.module.customer.userInfo.TblCustomerBean;
+import com.server.module.customer.userInfo.TblCustomerService;
+import com.server.module.system.machineManage.machinesWayItem.HuaFaResult;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,6 +36,7 @@ import com.server.module.sys.model.User;
 import com.server.module.sys.utils.UserUtils;
 import com.server.module.system.carryWaterVouchersManage.carryWaterVouchersCustomer.CarryWaterVouchersCustomerDto;
 import com.server.module.system.carryWaterVouchersManage.carryWaterVouchersCustomer.CarryWaterVouchersCustomerService;
+import com.server.module.system.machineManage.machinesWayItem.MachinesClient;
 import com.server.module.system.userManage.CustomerBean;
 import com.server.module.system.userManage.CustomerService;
 import com.server.redis.RedisClient;
@@ -67,7 +72,11 @@ public class OrderController {
 	@Autowired
 	private TblCustomerWxService tblCustomerWxService;
 	@Autowired
+	private TblCustomerService tblCustomerService;
+	@Autowired
 	private JwtTokenUtil jwtTokenUtil;
+	@Autowired
+	private MachinesClient machinesClient;
 	/**
 	 * 根据openId获取当前用户的所有订单
 	 * 
@@ -171,6 +180,7 @@ public class OrderController {
 		return returnDataUtil;
 	}
 
+
 	/**
 	 * 商城生成订单接口
 	 * 
@@ -194,7 +204,7 @@ public class OrderController {
 		log.info("<OrderController>----<add>----end");
 		return returnDataUtil;
 	}
-
+	
 	/**
 	 * 根据登陆id查询顾客地址
 	 * 
@@ -466,4 +476,76 @@ public class OrderController {
 		returnDataUtil.setReturnObject(token);
 		return returnDataUtil;
 	}
+
+	@ApiOperation(value = "更改配送状态", notes = "更改配送状态", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@PostMapping("/deliveryCompleted1")
+	public ReturnDataUtil delivering1(@RequestParam Long orderId){
+		Thread t = new Thread(new Runnable(){
+			@Override
+			public void run(){
+				// run方法具体重写
+				try {
+					Thread.sleep(1000000);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}});
+		t.start();
+		return returnDataUtil;
+	}
+
+
+	@RequestMapping(value = "/returnOrder")
+	@ResponseBody
+	public HuaFaResult returnOrder(@RequestBody String order){
+		//HuaFaResult huaFaResult = JSON.parseObject(order,HuaFaResult.class);
+		log.info("returnOrderAdmin"+order);
+		HuaFaResult huaFaResult = new HuaFaResult();
+		huaFaResult.setSuccess("true");
+		huaFaResult.setMessage("GG");
+		return huaFaResult;
+	}
+
+	@ApiOperation(value = "更改配送状态", notes = "更改配送状态", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@PostMapping("/deliveryCompleted")
+	public ReturnDataUtil delivering(@RequestParam Long orderId){
+		ReturnDataUtil returnDataUtil = new ReturnDataUtil();
+		String payCode = orderService.findPayCodeByOrderId(orderId);
+		OrderBean oBean=orderService.getMessageByPayCode(payCode);
+		Long customerId =oBean.getCustomerId();
+		log.info(customerId+"====="+customerId);
+		TblCustomerBean tblCustomerBean = tblCustomerService.getCustomerById(customerId);
+		boolean bean = orderService.delivering(orderId);
+		System.out.println("========================================" + orderId);
+		if (bean) {
+			returnDataUtil.setStatus(1);
+			returnDataUtil.setMessage("配送状态修改成功！");
+			if (oBean.getType()==2  && tblCustomerBean.getHuafaAppOpenId() != null){
+				HashMap<String, Object> map = new HashMap<>();
+				map.put("openId",tblCustomerBean.getHuafaAppOpenId());
+				map.put("orderId",orderId);
+				map.put("state",200005);
+				String json = JSON.toJSONString(map);//map转String
+				//HttpUtil.post("https://devapp.huafatech.com/app/water/orderInfo/updateWaterOrderInfo", json);
+				//HttpUtil.post("https://devapp.huafatech.com/app/water/orderInfo/updateWaterOrderInfo", json);
+				Thread t = new Thread(new Runnable(){
+					@Override
+					public void run(){
+						// run方法具体重写
+						try {
+							machinesClient.sendHuaFa(5,payCode, json);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}});
+				t.start();
+			}
+		} else {
+			returnDataUtil.setStatus(0);
+			returnDataUtil.setMessage("配送状态修改失败！");
+		}
+		return  returnDataUtil;
+	}
+
+
 }

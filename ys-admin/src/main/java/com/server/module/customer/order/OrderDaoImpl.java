@@ -221,20 +221,26 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 		if (orderform.getFindType() == 0) {
 			sql.append(
 					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order  so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
-			sql.append(" where openid=(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
+			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ") ");
 			sql.append(" GROUP BY so.id order by so.createTime  desc ,so.state desc  ");
 		} else if (orderform.getFindType() == 1) {
 			sql.append(
 					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
-			sql.append(" where openid=(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
+			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ")  and so.state=10001");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
 		} else if (orderform.getFindType() == 2) {
 			sql.append(
 					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
-			sql.append(" where openid=(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
+			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ")  and so.state=10002 ");
+			sql.append(" GROUP BY so.id order by so.createTime desc ");
+		} else if (orderform.getFindType() == 3) {
+			sql.append(
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
+					+ ")  and so.state=200004");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
 		}
 		Connection conn = null;
@@ -432,7 +438,9 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 				sql.append(" and pr.state = 10001");
 			} else if (type == 2) {
 				sql.append(" and pr.state = 10002 ");
-			}
+			}else if (type == 3) {
+				 sql.append(" and pr.state = 200004 ");
+			 }
 		}
 		sql.append("  order by pr.createTime desc limit 30 ");
 		log.info("机器订单查询sql语句：" + sql);
@@ -862,6 +870,46 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 		return orderList;
 	}
 
+	/**
+	 * 查询订单详情  pic返回完整路径
+	 */
+	@Override
+	public List<ShoppingBean> findShoppingBeandByOrderId(Long orderId, Integer orderType) {
+		log.info("<OrderDaoImpl>----<findShoppingBeandByOrderId>-----start>");
+		StringBuffer sql = new StringBuffer();
+		if (orderType == 1 || orderType == 3) {// 商城订单
+			sql.append(" select itemId,itemName,price,num,pic  from store_order_detile sod ");
+			sql.append(" left join shopping_goods sg on sod.itemId=sg.id where sod.orderId='" + orderId + "' ");
+			sql.append(" order by sod.createTime desc ");
+		}
+		log.info("查询订单详情sql语句：" + sql.toString());
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		ShoppingBean order = null;
+		List<ShoppingBean> orderList = new ArrayList<ShoppingBean>();
+		try {
+			conn = openConnection();
+			ps = conn.prepareStatement(sql.toString());
+			rs = ps.executeQuery();
+			while (rs != null && rs.next()) {
+				order = new ShoppingBean();
+				order.setItemId(rs.getInt("itemId"));
+				order.setItemName(rs.getString("itemName"));
+				order.setNum(rs.getInt("num"));
+				order.setPrice(rs.getDouble("price"));
+				order.setPic("http://119.23.233.123:6662/ys_admin/shoppingGoodsImg/" + rs.getString("pic"));
+				orderList.add(order);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			this.closeConnection(rs, ps, conn);
+		}
+		log.info("<OrderDaoImpl>-----<findShoppingBeandByOrderId>----end>");
+		return orderList;
+	}
+
 	@Override
 	public List<PayRecordItemDto> getPayRecordItemList(String payCode) {
 		log.info("<OrderDaoImpl>-----<getPayRecordItemList>----start>");
@@ -1222,13 +1270,19 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 	}
 
 	@Override
-	public int paySuccessStroeOrder(String outTradeNo, String transactionId, Integer type) {
+	public int paySuccessStroeOrder(Integer distributionModel,String outTradeNo, String transactionId, Integer type) {
 		log.info("<OrderDaoImpl>----<paySuccessStroeOrder>----start>");
 		StringBuffer sql = new StringBuffer();
 		if (type == 0) {
-			sql.append(" update store_order set ptCode='" + transactionId
-					+ "', payTime=current_timestamp() ,payType=1 , state=" + PayStateEnum.PAY_SUCCESS.getState() + " ");
-			sql.append("  where payCode='" + outTradeNo + "'");
+			if (distributionModel==1) {
+				sql.append(" update store_order set ptCode='" + transactionId
+						+ "', payTime=current_timestamp() ,payType=1 , state=" + PayStateEnum.PAY_SUCCESS.getState() + " ");
+				sql.append("  where payCode='" + outTradeNo + "'");
+			}else {
+				sql.append(" update store_order set ptCode='" + transactionId
+						+ "', payTime=current_timestamp() ,payType=1 , state=" + PayStateEnum.Delivering.getState() + " ");
+				sql.append("  where payCode='" + outTradeNo + "'");
+			}
 		} else {
 			sql.append(" update store_order set ptCode='" + transactionId
 					+ "',payTime=current_timestamp() ,payType=1 ,state=" + PayStateEnum.PAY_SUCCESS.getState() + " ");
@@ -1276,5 +1330,123 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 		}
 		log.info("<OrderDaoImpl--findOrderByOpenId--end>");
 		return count;
+	}
+
+	@Override
+	public Integer getDistributionModelByPayCode(String payCode) {
+		log.info("<OrderDaoImpl>-----<getDistributionModelByPayCode>--start>");
+		StringBuffer sql = new StringBuffer();
+		sql.append(" select distributionModel from store_order where payCode='" + payCode + "' ");
+		log.info("根据payCode查询公司id sql语句：" + sql);
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		Integer distributionModel = null;
+		try {
+			conn = openConnection();
+			ps = conn.prepareStatement(sql.toString());
+			rs = ps.executeQuery();
+			while (rs != null && rs.next()) {
+				distributionModel = rs.getInt("companyId");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			this.closeConnection(rs, ps, conn);
+		}
+		log.info("<OrderDaoImpl>-----<getDistributionModelByPayCode>--end>");
+		return distributionModel;
+	}
+
+	@Override
+	public boolean editDelivery(Long orderId) {
+		log.info("<OrderDaoImpl--editDelivery--start>");
+		StringBuffer sql = new StringBuffer();
+		sql.append("update store_order set state=" + PayStateEnum.Delivery_completed.getState() + " where id=" + orderId);
+		Connection conn = null;
+		PreparedStatement pst = null;
+		log.info("sql>>>:" + sql.toString());
+		try {
+			conn = openConnection();
+			pst = conn.prepareStatement(sql.toString());
+			int sign = pst.executeUpdate();
+			if (sign > 0) {
+				log.info("<OrderDaoImpl--editDelivery----end>");
+				return true;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			log.error(e);
+		} finally {
+			this.closeConnection(null, pst, conn);
+		}
+		return false;
+	}
+
+	@Override
+	public OrderBean getMessageByPayCode(String payCode) {
+		log.info("<OrderDaoImpl>----<pickUpAddress>----start>");
+		ReturnDataUtil data = new ReturnDataUtil();
+		StringBuffer sql = new StringBuffer();
+		sql.append(" select id,state,nowprice,payCode,createTime,type,price,payType,ptCode,product,customerId from store_order where payCode='" + payCode + "' ");
+		Connection conn = null;
+		PreparedStatement pst = null;
+		ResultSet rs = null;
+		OrderBean bean = new OrderBean();
+		log.info("根据payCode查询订单的部分信息：sql>>>:" + sql.toString());
+		try {
+			conn = openConnection();
+			pst = conn.prepareStatement(sql.toString());
+			rs = pst.executeQuery();
+			while (rs.next()) {
+				bean.setId(rs.getInt("id"));
+				bean.setState(rs.getInt("state"));
+				bean.setNowprice(rs.getBigDecimal("nowprice"));
+				bean.setPayCode(rs.getString("payCode"));
+				bean.setCreateTime(rs.getTime("createTime"));
+				bean.setType(rs.getInt("type"));
+				bean.setCustomerId(rs.getLong("customerId"));
+				bean.setPrice(rs.getBigDecimal("price"));
+				bean.setPayType(rs.getInt("payType"));
+				bean.setPtCode(rs.getString("ptCode"));
+				bean.setProduct(rs.getString("product"));
+				bean.setStateName(PayStateEnum.findStateName(rs.getInt("state")));
+			}
+			data.setStatus(1);
+			data.setMessage("查询成功");
+			log.info("<OrderDaoImpl>----<pickUpAddress>----end>");
+			return bean;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return bean;
+		} finally {
+			this.closeConnection(rs, pst, conn);
+		}
+	}
+
+	@Override
+	public String findPayCodeByOrderId(Long orderId) {
+		log.info("<OrderDaoImpl>-----<findCustomerIdByOpenId>-----start");
+		StringBuffer sql = new StringBuffer();
+		sql.append("SELECT payCode FROM store_order WHERE id='" + orderId + "' ");
+		log.info("sql语句：" + sql);
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		String payCode = null;
+		try {
+			conn = openConnection();
+			ps = conn.prepareStatement(sql.toString());
+			rs = ps.executeQuery();
+			while (rs != null && rs.next()) {
+				payCode = rs.getString("payCode");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			this.closeConnection(rs, ps, conn);
+		}
+		log.info("<OrderDaoImpl>-----<findCustomerIdByOpenId>------end");
+		return payCode;
 	}
 }

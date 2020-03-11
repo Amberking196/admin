@@ -56,10 +56,20 @@ public class ShoppingGoodsServiceImpl implements ShoppingGoodsService {
 	public ReturnDataUtil listPage(ShoppingGoodsForm shoppingGoodsForm) {
 		log.info("<ShoppingGoodsServiceImpl>----<listPage>----start");
 		ReturnDataUtil list = shoppingGoodsDaoImpl.listPage(shoppingGoodsForm);
-		List<ShoppingGoodsBean>  s= (List<ShoppingGoodsBean>) list.getReturnObject();
+		//List<ShoppingGoodsBean>  s= (List<ShoppingGoodsBean>) list.getReturnObject();
 		log.info("<ShoppingGoodsServiceImpl>----<listPage>----end");
 		return list;
 	}
+
+	@Override
+	public ReturnDataUtil mealListPage(ShoppingGoodsForm shoppingGoodsForm) {
+		log.info("<ShoppingGoodsServiceImpl>----<listPage>----start");
+		ReturnDataUtil list = shoppingGoodsDaoImpl.mealListPage(shoppingGoodsForm);
+		//List<ShoppingGoodsBean>  s= (List<ShoppingGoodsBean>) list.getReturnObject();
+		log.info("<ShoppingGoodsServiceImpl>----<listPage>----end");
+		return list;
+	}
+
 	@Override
 	public ShoppingGoodsBean add(ShoppingGoodsBean entity) {
 		log.info("<ShoppingGoodsServiceImpl>----<add>----start");

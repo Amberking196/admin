@@ -42,6 +42,8 @@ public class ShoppingCarBean{
 	private String pic;
 	//商品是否支持自取  0 不支持  1  支持
 	private Integer isHelpOneself;
+	
+	Long mealId;
 
 }
 

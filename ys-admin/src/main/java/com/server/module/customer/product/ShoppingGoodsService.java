@@ -22,6 +22,13 @@ public interface ShoppingGoodsService {
 	 * @return
 	 */
 	public ReturnDataUtil listPage(ShoppingGoodsForm shoppingGoodsForm);
+	/**
+	 *
+	 * 查询商城商品套餐列表
+	 * @param condition
+	 * @return
+	 */
+	public ReturnDataUtil mealListPage(ShoppingGoodsForm shoppingGoodsForm);
 
 	/**
 	 * 查询商品是（否）绑定的机器集合

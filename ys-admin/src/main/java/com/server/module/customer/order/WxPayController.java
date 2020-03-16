@@ -70,7 +70,7 @@ import io.swagger.annotations.ApiOperation;
 public class WxPayController {
 
 	private static final Logger log = LogManager.getLogger(WxPayController.class);
-	
+
 	@Autowired
 	private OrderService orderService;
 	@Autowired
@@ -96,8 +96,8 @@ public class WxPayController {
 	@Autowired
 	private GroupOrderService groupOrderServiceImpl;
 	@Autowired
-	private  TblCustomerSpellGroupService tblCustomerSpellGroupService; 
-	
+	private  TblCustomerSpellGroupService tblCustomerSpellGroupService;
+
 	@Value("${wechat.pay.storeNotify}")
 	private String storeNotify;
 	@Value("${wechat.pay.storeAppNotify}")
@@ -106,10 +106,10 @@ public class WxPayController {
 	private String storePayUrl;
 	@Value("${wechat.pay.storeGroupNotify}")
 	private String storeGroupNotify;
-	
+
 	/**
 	 * 微信支付
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	@ApiOperation(value = "微信支付", notes = "微信支付", httpMethod = "GET", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@GetMapping("/storeOrderPay")
@@ -192,16 +192,16 @@ public class WxPayController {
 		log.info("<WxPayController>----<linkSms>----end");
 		return map;
 	}
-	
+
 	@ApiOperation(value = "微信APP支付", notes = "微信APP支付", httpMethod = "GET", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@GetMapping("/storeOrderAppPay")
-	public Map<String, Object> appLinkSms(OrderForm orderForm,HttpServletRequest req,HttpServletResponse response) throws Exception{
+	public String appLinkSms(OrderForm orderForm,HttpServletRequest req,HttpServletResponse response) throws Exception{
 		log.info("<WxPayController>----<storeOrderAppPay>----start");
 		Map<String, Object> map = Maps.newHashMap();
 		Long customerId = CustomerUtil.getCustomerId();
 		CustomerBean cus = customerService.findCustomerById(customerId);
 		if (cus == null) {
-			return null;
+			//return null;
 		}
 		Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
 		String product = (String) id.get("product");
@@ -227,23 +227,26 @@ public class WxPayController {
 				products = products + list.get(a) + ",";
 			}
 		}
-		
-		request.setScene_info("{\"h5_info\": {\"type\":\"Android\",\"app_name\": \"华发优生活\",\"package_name\": \"com.tencent.tmgp.sgame\"}}");
-		request.setAppid(wxPayConfig.getAppAppID());
+
+		request.setScene_info("{\"h5_info\": {\"type\":\"Wap\",\"wap_url\": \"webapp.youshuidaojia.com\",\"wap_name\": \"优水到家\"}}");
+		request.setAppid(wxPayConfig.getAppID());
 		request.setMch_id(wxPayConfig.getMchID());
 		request.setBody("优水到家-"+products);//
 		request.setTrade_type("MWEB");
 		request.setNotify_url(storeAppNotify);
 		request.setNonce_str(nonce_str);
 		request.setOut_trade_no(payCode);
-		
+
 		BigDecimal fee = new BigDecimal(nowprice);
 		BigDecimal totalFee = fee.multiply(new BigDecimal(100));
 		request.setTotal_fee(totalFee.intValue() + "");
 		request.setSpbill_create_ip(spbillCreateIp);
 		Map<String, String> mapParam = request.requestToMap(request, false);
 		Map<String, String> unifiedOrder = wxPay.unifiedOrder(mapParam);
+		String  mweb_url=unifiedOrder.get("mweb_url");
 		log.info("prepay_id"+unifiedOrder.get("prepay_id"));
+		log.info("mweb_url"+unifiedOrder.get("mweb_url"));
+
 //		Map<String, String> wxJsapiSignature = null;
 //		if (StringUtil.isNotBlank(url)) {
 //			wxJsapiSignature = wxTicketService.getJspidSignature(url, companyId);
@@ -267,8 +270,10 @@ public class WxPayController {
 			e.printStackTrace();
 		}
 		map.put("payInfo", payInfo);// 微信支付
+		mweb_url=mweb_url+"&redirect_url=http://webapp.youshuidaojia.com:8081/cMain/payFinish";
 		log.info("<WxPayController>----<appLinkSms>----end");
-		return map;
+		return mweb_url;
+		//return map;
 	}
 	/**
 	 * 微信完成商城订单后的回调，用以确认订单是否完成支付，并更新状态
@@ -355,7 +360,7 @@ public class WxPayController {
 									storeOrderServiceImpl.update(stock);
 								}
 							} else {// 非自取 判断用户购买的商品订单是否有绑定套餐 如果有 加入存水
-									// 根据商城商品id 查询绑定商品信息
+								// 根据商城商品id 查询绑定商品信息
 								List<ShoppingGoodsProductBean> shoppingGoodsProductBeanList = shoppingGoodsProductService
 										.getShoppingGoodsProductBean(orderDetailBean.getItemId().longValue());
 								if (shoppingGoodsProductBeanList != null && shoppingGoodsProductBeanList.size() > 0) {
@@ -675,81 +680,81 @@ public class WxPayController {
 				e.printStackTrace();
 			}
 		}else {
-			
-				Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
-				String product = (String) id.get("product");
-				String payCode = (String) id.get("payCode");
-				double nowprice = (double) id.get("nowprice");
-				String spbillCreateIp = req.getRemoteHost();
-				String openId = cus.getOpenId();
-				String url = orderForm.getUrl();
 
-				Integer companyId = orderService.getCompanyIdByPayCode(payCode);
-				WXPay wxPay = wxpayConfigFactory.getWXPay(companyId);
-				WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
-				MyWXRequest request = new MyWXRequest();
-				String nonce_str = UUID.randomUUID().toString().replaceAll("-", "");
-				String findShoppingGoogsName = shoppingGoodsService.findShoppingGoogsName(product);
-	            if(StringUtils.isNotEmpty(openId)){
-					request.setAppid(wxPayConfig.getAppID());
-					request.setTrade_type("JSAPI");
-					request.setOpenid(openId);
-	            }else{
-					request.setAppid(wxPayConfig.getAppAppID());
-					request.setTrade_type("APP");
-	            }
-				request.setMch_id(wxPayConfig.getMchID());
-				request.setDevice_info("WEB");
-				request.setBody(findShoppingGoogsName);//
-				request.setNotify_url(storeGroupNotify);
-				request.setNonce_str(nonce_str);
-				request.setOut_trade_no(payCode);
-				BigDecimal fee = new BigDecimal(nowprice);
-				BigDecimal totalFee = fee.multiply(new BigDecimal(100));
-				request.setTotal_fee(totalFee.intValue() + "");
-				request.setSpbill_create_ip(spbillCreateIp);
-				Map<String, String> mapParam = request.requestToMap(request, false);
-				Map<String, String> unifiedOrder = wxPay.unifiedOrder(mapParam);
-				Map<String, String> wxJsapiSignature = null;
-	            if(StringUtils.isNotEmpty(openId)){
-					if (StringUtil.isNotBlank(url)) {
-						wxJsapiSignature = wxTicketService.getJspidSignature(url, companyId);
-					} else {
-						wxJsapiSignature = wxTicketService.getJspidSignature(storePayUrl, companyId);
-					}
-					map.put("config", wxJsapiSignature);// 微信jssdk config用
-	            }
-				Map<String, String> payInfo = Maps.newHashMap();
-                if(StringUtils.isNotEmpty(openId)){
-                	payInfo.put("appId", wxPayConfig.getAppID());
-                	payInfo.put("signType", "MD5");
-    				payInfo.put("package", "prepay_id=" + unifiedOrder.get("prepay_id"));
-    				payInfo.put("timeStamp", System.currentTimeMillis() / 1000 + "");
-    				payInfo.put("nonceStr", nonce_str);
-                }else{
-                	payInfo.put("appid", wxPayConfig.getAppAppID());
-                	payInfo.put("partnerid",wxPayConfig.getMchID());
-                	payInfo.put("prepayid",unifiedOrder.get("prepay_id").toString());
-                	payInfo.put("package","Sign=WXPay");
-    				payInfo.put("timeStamp", System.currentTimeMillis() / 1000 + "");
-    				payInfo.put("nonceStr", nonce_str);
-                }
+			Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
+			String product = (String) id.get("product");
+			String payCode = (String) id.get("payCode");
+			double nowprice = (double) id.get("nowprice");
+			String spbillCreateIp = req.getRemoteHost();
+			String openId = cus.getOpenId();
+			String url = orderForm.getUrl();
+
+			Integer companyId = orderService.getCompanyIdByPayCode(payCode);
+			WXPay wxPay = wxpayConfigFactory.getWXPay(companyId);
+			WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
+			MyWXRequest request = new MyWXRequest();
+			String nonce_str = UUID.randomUUID().toString().replaceAll("-", "");
+			String findShoppingGoogsName = shoppingGoodsService.findShoppingGoogsName(product);
+			if(StringUtils.isNotEmpty(openId)){
+				request.setAppid(wxPayConfig.getAppID());
+				request.setTrade_type("JSAPI");
+				request.setOpenid(openId);
+			}else{
+				request.setAppid(wxPayConfig.getAppAppID());
+				request.setTrade_type("APP");
+			}
+			request.setMch_id(wxPayConfig.getMchID());
+			request.setDevice_info("WEB");
+			request.setBody(findShoppingGoogsName);//
+			request.setNotify_url(storeGroupNotify);
+			request.setNonce_str(nonce_str);
+			request.setOut_trade_no(payCode);
+			BigDecimal fee = new BigDecimal(nowprice);
+			BigDecimal totalFee = fee.multiply(new BigDecimal(100));
+			request.setTotal_fee(totalFee.intValue() + "");
+			request.setSpbill_create_ip(spbillCreateIp);
+			Map<String, String> mapParam = request.requestToMap(request, false);
+			Map<String, String> unifiedOrder = wxPay.unifiedOrder(mapParam);
+			Map<String, String> wxJsapiSignature = null;
+			if(StringUtils.isNotEmpty(openId)){
+				if (StringUtil.isNotBlank(url)) {
+					wxJsapiSignature = wxTicketService.getJspidSignature(url, companyId);
+				} else {
+					wxJsapiSignature = wxTicketService.getJspidSignature(storePayUrl, companyId);
+				}
+				map.put("config", wxJsapiSignature);// 微信jssdk config用
+			}
+			Map<String, String> payInfo = Maps.newHashMap();
+			if(StringUtils.isNotEmpty(openId)){
+				payInfo.put("appId", wxPayConfig.getAppID());
+				payInfo.put("signType", "MD5");
+				payInfo.put("package", "prepay_id=" + unifiedOrder.get("prepay_id"));
+				payInfo.put("timeStamp", System.currentTimeMillis() / 1000 + "");
+				payInfo.put("nonceStr", nonce_str);
+			}else{
+				payInfo.put("appid", wxPayConfig.getAppAppID());
+				payInfo.put("partnerid",wxPayConfig.getMchID());
+				payInfo.put("prepayid",unifiedOrder.get("prepay_id").toString());
+				payInfo.put("package","Sign=WXPay");
+				payInfo.put("timeStamp", System.currentTimeMillis() / 1000 + "");
+				payInfo.put("nonceStr", nonce_str);
+			}
 //				payInfo.put("appId", wxPayConfig.getAppID());
 //				payInfo.put("package", "prepay_id=" + unifiedOrder.get("prepay_id"));
 //				payInfo.put("signType", "MD5");
-				try {
-					String sign = WXPayUtil.generateSignature(payInfo, wxPayConfig.getKey());
-					payInfo.put("sign", sign);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				map.put("payInfo", payInfo);// 微信支付
-				redisClient.set("Price_"+cus.getOpenId(), id.get("nowprice").toString(),60*5);
+			try {
+				String sign = WXPayUtil.generateSignature(payInfo, wxPayConfig.getKey());
+				payInfo.put("sign", sign);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			map.put("payInfo", payInfo);// 微信支付
+			redisClient.set("Price_"+cus.getOpenId(), id.get("nowprice").toString(),60*5);
 		}
 		log.info("<OrderController>----<linkSpellGroupSms>----end");
 		return map;
 	}
-	
+
 	@RequestMapping(value = "/storeGroupNotify")
 	public void payStoreGroupNotify(@RequestBody String xml, HttpServletResponse response) {
 		log.info("=====gourpNotify====");
@@ -873,9 +878,9 @@ public class WxPayController {
 		}
 		return;
 	}
-	
-	
-	
+
+
+
 	public void sendVouchers(GroupOrderBean order,Long customerId) {
 		if(order.getVouchersId() > 0 || StringUtils.isNotBlank(order.getVouchersIds())){
 			if(order.getTypeId().equals(28)) {//套餐类型
@@ -888,9 +893,9 @@ public class WxPayController {
 			}
 		}
 	}
-	
-	
-	
+
+
+
 	public  void writeMsgToWx(String msg, HttpServletResponse response) {
 		try {
 			response.reset();

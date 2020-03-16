@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.request.AlipayTradeAppPayRequest;
+import com.alipay.api.request.AlipayTradeWapPayRequest;
 import com.alipay.api.response.AlipayTradeAppPayResponse;
 import com.server.module.config.aliPay.AlipayAPIClientFactory;
 import com.server.module.config.aliPay.AliPayConfig;
@@ -62,52 +63,6 @@ public class AliPayController {
 	//@RequestParam
 	@GetMapping("/appPay")
 	public String wapPay(OrderForm orderForm,HttpServletRequest request,HttpServletResponse response) throws IOException {
-		log.info("<AlipayController--appPay--start>"); 
-		Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
-		Long customerId = CustomerUtil.getCustomerId();
-//		if(record.getCustomerId()!=null && !record.getState().equals(PayStateEnum.PAY_SUCCESS.getState().toString())){
-//			CustomerBean customer = customerService.queryById(record.getCustomerId());
-//			if(customer!=null && StringUtil.isNotBlank(customer.getAlipayUserId())){
-//				String agreementNo = alipayService.querySign(customer.getAlipayUserId(),vmCode);
-//				if(StringUtil.isNotBlank(agreementNo)){
-//					ptCode = alipayService.cutPayment(record.getTotalPrice(), record.getPayCode(), record.getItemName(), agreementNo);
-//				}
-//			}
-//		}
-		Integer companyId=(Integer) id.get("companyId");
-		String product = (String) id.get("product");
-		String payCode = (String) id.get("payCode");
-		double nowprice=(double) id.get("nowprice");
-		
-		redisClient.set("Price_"+customerId, id.get("nowprice").toString(),60*5);
-
-		AlipayClient alipayClient = alipayAPIClientFactory.getAlipayClient(companyId);
-		AlipayTradeAppPayRequest alipayRequest = new AlipayTradeAppPayRequest();
-		//AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
-		//AlipayTradeAppPayRequest aliAppPayRequest = new AlipayTradeAppPayRequest();
-		AliPayConfig alipayConfig = alipayConfigFactory.getAlipayConfig(companyId);
-	    //alipayRequest.setReturnUrl(alipayConfig.wap_return_url);这个接口是获取token返回机器首页
-		alipayRequest.setNotifyUrl(alipayConfig.wap_notify_url);// 在公共参数中设置回跳和通知地址
-		alipayRequest.setBizContent("{" 
-				+ " \"out_trade_no\":\""+payCode+"\"," 
-				+ " \"total_amount\":\""+nowprice+"\","
-				+ " \"subject\":\""+product+"\"," 
-				+ " \"product_code\":\"QUICK_MSECURITY_PAY\"" 
-				+ " }");// 填充业务参数
-		AlipayTradeAppPayResponse appResponse = null;
-		try {
-			appResponse = alipayClient.sdkExecute(alipayRequest);
-		} catch (AlipayApiException e) {
-			e.printStackTrace();
-		} // 调用SDK生成表单
-		log.info("支付宝下单结果"+appResponse.getBody());
-		log.info("<AlipayController--appPay--end>");
-		return appResponse.getBody();
-		
-	}
-
-	@GetMapping("/huafaAppPay")
-	public String huafaAppPay(OrderForm orderForm,HttpServletRequest request,HttpServletResponse response) throws IOException {
 		log.info("<AlipayController--appPay--start>");
 		Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
 		Long customerId = CustomerUtil.getCustomerId();
@@ -133,7 +88,7 @@ public class AliPayController {
 		//AlipayTradeAppPayRequest aliAppPayRequest = new AlipayTradeAppPayRequest();
 		AliPayConfig alipayConfig = alipayConfigFactory.getAlipayConfig(companyId);
 		//alipayRequest.setReturnUrl(alipayConfig.wap_return_url);这个接口是获取token返回机器首页
-		alipayRequest.setNotifyUrl("http://yms.youshuidaojia.com/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
+		alipayRequest.setNotifyUrl(alipayConfig.wap_notify_url);// 在公共参数中设置回跳和通知地址
 		alipayRequest.setBizContent("{"
 				+ " \"out_trade_no\":\""+payCode+"\","
 				+ " \"total_amount\":\""+nowprice+"\","
@@ -148,40 +103,51 @@ public class AliPayController {
 		} // 调用SDK生成表单
 		log.info("支付宝下单结果"+appResponse.getBody());
 		log.info("<AlipayController--appPay--end>");
-		/*
-		 * 
-		TblCustomerBean tbBean = tblCustomerService.getCustomerById(customerId);
-		OrderBean ob = orderService.getMessageByPayCode(payCode);
-		if (tbBean.getHuafaAppOpenId() !=null) {
-			if (appResponse.getCode().equals(9000) || appResponse.getCode().equals(8000)) {
-				Map<String, Object> huaAppMap = new HashMap<String, Object>();
-				List<ShoppingBean> newlist = orderService.findShoppingBeandByOrderId(ob.getId(),ob.getType());
-				huaAppMap.put("orderId", ob.getId());
-				huaAppMap.put("openId", tbBean.getHuafaAppOpenId());
-				huaAppMap.put("state", ob.getState());
-				huaAppMap.put("nowprice", ob.getNowprice());
-				huaAppMap.put("payCode", ob.getPayCode());
-				huaAppMap.put("createTime", ob.getCreateTime());
-				huaAppMap.put("time", new Date());
-				huaAppMap.put("type", ob.getType());
-				huaAppMap.put("useMoney", "");
-				huaAppMap.put("price", ob.getPrice());
-				huaAppMap.put("payType", ob.getPayType());
-				huaAppMap.put("stateName", ob.getStateName());
-				huaAppMap.put("ptCode", appResponse.getTradeNo());
-				huaAppMap.put("product", ob.getProduct());
-				huaAppMap.put("phone", tbBean.getPhone());
-				huaAppMap.put("list", newlist);
-				String json = JSON.toJSONString(huaAppMap);//map转String
-				//JSONObject jsonObject = JSON.parseObject(json);//String转json
-				HttpUtil.post("https://devapp.huafatech.com/app/water/orderInfo/createWaterOrderInfo", json);
-				log.info("订单传输成功！！！");
-			}
-			}*/
 		return appResponse.getBody();
 
 	}
-	
+
+	@GetMapping("/huafaAppPay")
+	public String huafaAppPay(OrderForm orderForm,HttpServletRequest request,HttpServletResponse response) throws IOException {
+		log.info("<AlipayController--appPay--start>");
+		Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
+		Long customerId = CustomerUtil.getCustomerId();
+
+		Integer companyId=(Integer) id.get("companyId");
+		String product = (String) id.get("product");
+		String payCode = (String) id.get("payCode");
+		double nowprice=(double) id.get("nowprice");
+
+		redisClient.set("Price_"+customerId, id.get("nowprice").toString(),60*5);
+		companyId=1;
+		AlipayClient alipayClient = alipayAPIClientFactory.getAlipayClient(companyId);
+		AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
+		//AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
+		//AlipayTradeAppPayRequest aliAppPayRequest = new AlipayTradeAppPayRequest();
+		AliPayConfig alipayConfig = alipayConfigFactory.getAlipayConfig(companyId);
+		alipayRequest.setReturnUrl("http://webapp.youshuidaojia.com:8081/cMain/payFinish");//这个接口是获取token返回机器首页
+		alipayRequest.setNotifyUrl("http://yms.youshuidaojia.com/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
+		alipayRequest.setBizContent("{"
+				+ " \"out_trade_no\":\""+payCode+"\","
+				+ " \"total_amount\":\""+nowprice+"\","
+				+ " \"subject\":\""+"订单金额"+"\","
+				+ " \"product_code\":\"QUICK_WAP_PAY\""
+				+ " }");// 填充业务参数
+		String form = "";
+		log.info(JSON.toJSONString(alipayRequest));
+		log.info(JSON.toJSONString(alipayClient));
+
+		try {
+			form = alipayClient.pageExecute(alipayRequest).getBody(); // 调用SDK生成表单
+		} catch (AlipayApiException e) {
+			e.printStackTrace();
+		}
+		log.info("<AlipayController--balanceAliPay--end>");
+
+		return form;
+
+	}
+
 //	 public LvQuResult alipay(String body, String subject, String totalAmount, int userId, int member_id, String outTradeNo) {
 //	        //SDK已经封装掉了公共参数，这里只需要传入业务参数。以下方法为sdk的model入参方式(model和biz_content同时存在的情况下取biz_content)。
 //	        AlipayTradeAppPayModel model = new AlipayTradeAppPayModel();

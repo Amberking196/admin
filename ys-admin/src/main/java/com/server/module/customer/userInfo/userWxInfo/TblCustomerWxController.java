@@ -1,7 +1,11 @@
 package com.server.module.customer.userInfo.userWxInfo;
 
 import java.util.List;
+import java.util.Objects;
 
+import com.server.module.customer.order.OrderService;
+import com.server.module.system.userManage.CustomerBean;
+import com.server.module.system.userManage.CustomerService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,10 @@ public class TblCustomerWxController {
 	private TblCustomerWxService tblCustomerWxServiceImpl;
 	@Autowired
 	private UserUtils userUtils;
+	@Autowired
+	private OrderService orderService;
+	@Autowired
+	private CustomerService customerService;
 	
 	
 	@ApiOperation(value = "微信用户信息列表", notes = "listPage", httpMethod = "GET", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
@@ -59,6 +67,7 @@ public class TblCustomerWxController {
 		if(customerId==null) {
 			customerId=userUtils.getSmsUser().getId();
 		}
+		String huafaAppOpenId = orderService.findHuafaopenIdByCustomerId(customerId);
 		TblCustomerWxBean tblCustomerWxBean = tblCustomerWxServiceImpl.get(customerId);
 		if(tblCustomerWxBean!=null) {
 			returnDataUtil.setStatus(1);
@@ -68,6 +77,11 @@ public class TblCustomerWxController {
 				returnDataUtil.setStatus(-66);
 				returnDataUtil.setMessage("非优水用户，目前不支持余额充值！");
 			}
+		}else if (StringUtil.isNotEmpty(huafaAppOpenId) && Objects.isNull(tblCustomerWxBean)){
+			CustomerBean cus = customerService.findCustomerById(customerId);
+			returnDataUtil.setStatus(1);
+			returnDataUtil.setMessage("信息查看成功,非优水用户，目前不支持余额充值！");
+			returnDataUtil.setReturnObject(cus);
 		}else {
 			returnDataUtil.setStatus(-99);
 			returnDataUtil.setMessage("暂无微信信息,请录入信息！");

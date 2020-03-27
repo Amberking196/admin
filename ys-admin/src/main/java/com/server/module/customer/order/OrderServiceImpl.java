@@ -110,7 +110,7 @@ public class OrderServiceImpl implements OrderService {
 		if (orderform.getCustomerId() != null) {
 			openId = orderDao.findOpenIdByCustomerId(orderform.getCustomerId());
 			huafaAppOpenId = tblCustomerDao.getCustomerById(user.getId()).getHuafaAppOpenId();
-			if (huafaAppOpenId ==null && StringUtils.isBlank(openId)){
+			if (StringUtils.isBlank(huafaAppOpenId) && StringUtils.isBlank(openId)){
 				returnDataUtil.setStatus(2);
 				returnDataUtil.setMessage("非微信用户，订单创建失败！");
 			}
@@ -220,7 +220,11 @@ public class OrderServiceImpl implements OrderService {
 			}
 		}
 		ob.setCompanyId(companyId);
-		ob.setOpenid(openId);
+		if (StringUtils.isEmpty(openId)){
+			ob.setOpenid(huafaAppOpenId);
+		}else {
+			ob.setOpenid(openId);
+		}
 		//ob.setType(1);
 		ob.setState(PayStateEnum.NOT_PAY.getState());
 		BigDecimal price = new BigDecimal(String.valueOf(orderDao.findSumPriceByProduct(orderform.getProduct())));
@@ -515,6 +519,43 @@ public class OrderServiceImpl implements OrderService {
 	}
 
 	@Override
+	public ReturnDataUtil storeOrderFindByHuafa(OrderForm orderform) {
+		log.info("<OrderServiceImpl--storeOrderFindByHuafa--start>");
+		ReturnDataUtil storeOrderFind = orderDao.storeOrderFindByHuafa(orderform);
+		List<OrderBean> list = (List<OrderBean>) storeOrderFind.getReturnObject();
+		Iterator<OrderBean> it = list.iterator();
+		Date date = new Date();
+		log.info("before" + storeOrderFind.getTotal());// 42->21 25->25 17->8 pageSize=30
+		while (it.hasNext()) {
+			OrderBean bo = it.next();
+			if (bo.getState().equals(10002)) {// 未支付订单过滤掉过期提水券
+				String[] split = bo.getProduct().split(",");
+				for (String s : split) {
+					ShoppingCarBean shoppingCarBean = shoppingCarDaoImpl.get(s);
+					if (shoppingCarBean != null) {
+						ShoppingGoodsBean shoppingGoodsBean = shoppingGoodsDaoImpl.get(shoppingCarBean.getItemId());
+						if (shoppingGoodsBean != null) {
+							if (shoppingGoodsBean.getVouchersId() > 0) {// 提水券过期
+								CarryWaterVouchersBean bean = carryWaterVouchersDaoImpl
+										.get(shoppingGoodsBean.getVouchersId());
+								if (date.after(bean.getEndTime())) {
+									it.remove();
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		storeOrderFind.setTotal((long) list.size());
+		log.info("after" + storeOrderFind.getTotal());
+		log.info("<OrderServiceImpl--storeOrderFindByHuafa--end>");
+		return storeOrderFind;
+	}
+
+	@Override
 	public List<ShoppingBean> findShoppingBeandByOrderId(Long orderId, Integer orderType) {
 		log.info("<OrderServiceImpl--findShoppingBeandByOrderId--start>");
 		List<ShoppingBean> list = orderDao.findShoppingBeandByOrderId(orderId,orderType);
@@ -581,6 +622,14 @@ public class OrderServiceImpl implements OrderService {
 		List<String> addressFind = orderDao.addressFind(orderform);
 		log.info("<OrderServiceImpl--findSomeMessByOrderId--end>");
 		return addressFind;
+	}
+
+	@Override
+	public String findHuafaopenIdByCustomerId( Long customerId ) {
+		log.info("<OrderServiceImpl--findHuafaopenIdByCustomerId--start>");
+		String openId = orderDao.findHuafaopenIdByCustomerId(customerId);
+		log.info("<OrderServiceImpl--findHuafaopenIdByCustomerId--end>");
+		return openId;
 	}
 
 	@Override
@@ -928,5 +977,13 @@ public class OrderServiceImpl implements OrderService {
 		boolean bean = orderDao.editDelivery(orderId);
 		log.info("<OrderServiceImpl>-------<delivering>-------end");
 		return bean;
+	}
+
+	@Override
+	public String findOpenIdByCustomerId( Long customerId ) {
+		log.info("<OrderServiceImpl>-------<findOpenIdByCustomerId>-------start");
+		String id = orderDao.findOpenIdByCustomerId(customerId);
+		log.info("<OrderServiceImpl>-------<findOpenIdByCustomerId>-------end");
+		return id;
 	}
 }

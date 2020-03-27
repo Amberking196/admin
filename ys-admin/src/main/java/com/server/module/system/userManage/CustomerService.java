@@ -11,8 +11,8 @@ public interface CustomerService {
 	 * @return CustomerBean
 	 */
 	CustomerBean findCustomerById(Long id);
-	
-	
+
+
 	/**
 	 * 根据条件查询用户信息
 	 * @param userManagerForm

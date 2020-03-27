@@ -44,6 +44,13 @@ public interface OrderDao {
 	public String findOpenIdByCustomerId(Long customerId);
 
 	/**
+	 * 根据用户id查询华发用户的huafaopenId
+	 * @return
+	 */
+
+	public String findHuafaopenIdByCustomerId(Long customerId);
+
+	/**
 	 * 根据优惠券id查询减扣金额
 	 * @return
 	 */
@@ -70,6 +77,13 @@ public interface OrderDao {
 	 * @return
 	 */
 	public ReturnDataUtil storeOrderFind(OrderForm orderform);
+
+	/**
+	 *  查询华发用户订单
+	 * @param  orderform
+	 * @return
+	 */
+	public ReturnDataUtil storeOrderFindByHuafa(OrderForm orderform);
     
 	/**
 	 *  用户订单修改

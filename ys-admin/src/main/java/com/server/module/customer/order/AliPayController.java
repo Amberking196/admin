@@ -113,20 +113,21 @@ public class AliPayController {
 		Map<String, Object> id = orderService.findSomeMessByOrderId(orderForm);
 		Long customerId = CustomerUtil.getCustomerId();
 
-		Integer companyId=(Integer) id.get("companyId");
+		//Integer companyId=(Integer) id.get("companyId");
 		String product = (String) id.get("product");
 		String payCode = (String) id.get("payCode");
+		Integer companyId = orderService.getCompanyIdByPayCode(payCode);
 		double nowprice=(double) id.get("nowprice");
 
 		redisClient.set("Price_"+customerId, id.get("nowprice").toString(),60*5);
-		companyId=1;
+
 		AlipayClient alipayClient = alipayAPIClientFactory.getAlipayClient(companyId);
 		AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
 		//AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
 		//AlipayTradeAppPayRequest aliAppPayRequest = new AlipayTradeAppPayRequest();
 		AliPayConfig alipayConfig = alipayConfigFactory.getAlipayConfig(companyId);
-		alipayRequest.setReturnUrl("http://webapp.youshuidaojia.com:8081/cMain/payFinish");//这个接口是获取token返回机器首页
-		alipayRequest.setNotifyUrl("http://yms.youshuidaojia.com/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
+		alipayRequest.setReturnUrl("http://webapp.youshuidaojia.com:8081/cMain/myOrder");//这个接口是获取token返回机器首页
+		alipayRequest.setNotifyUrl("http://free-tcp.svipss.top:34731/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
 		alipayRequest.setBizContent("{"
 				+ " \"out_trade_no\":\""+payCode+"\","
 				+ " \"total_amount\":\""+nowprice+"\","

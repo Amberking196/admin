@@ -57,6 +57,13 @@ public interface OrderService {
 
 	public ReturnDataUtil storeOrderFind(OrderForm orderform);
 
+
+	/**
+	 *  查询华发用户订单
+	 * @return
+	 */
+	public ReturnDataUtil storeOrderFindByHuafa(OrderForm orderform);
+
 	/**
 	 * 查询订单详情   pic返回完整路径
 	 * @author HHH
@@ -97,6 +104,13 @@ public interface OrderService {
 	 */
 
 	public List<String> addressFind(OrderForm orderform);
+
+	/**
+	 * 根据用户id查询华发用户的huafaopenId
+	 * @return
+	 */
+
+	public String findHuafaopenIdByCustomerId(Long customerId);
     
 	
 	/**
@@ -234,4 +248,6 @@ public interface OrderService {
 	 * @return
 	 */
 	public boolean delivering(Long orderId);
+
+	String findOpenIdByCustomerId( Long customerId );
 }

@@ -499,7 +499,7 @@ public class ShoppingGoodsController {
 		ReturnDataUtil returnDataUtil=new ReturnDataUtil();
 		String key = "zhuhaihuafa-shoppinggoods";
 		String shoppingGoods = redisClient.get(key);
-		if (shoppingGoods != null){
+		if (shoppingGoods != null && shoppingGoods.length() != 0){
 				returnDataUtil.setStatus(1);
 				//List<ShoppingGoodsBean> list = JSONObject.parseArray(shoppingGoods, ShoppingGoodsBean.class);
 				returnDataUtil.setMessage("从redis中查询成功！！！");
@@ -513,6 +513,7 @@ public class ShoppingGoodsController {
 					returnDataUtil = shoppingGoodsServiceImpl.huaFaAppList(shoppingGoodsForm);
 					redisClient.set(key,JSON.toJSONString(returnDataUtil.getReturnObject()));
 				}else{
+					redisClient.del(key);
 					returnDataUtil.setMessage("查询列表数据，并写入 redis");
 					returnDataUtil = shoppingGoodsServiceImpl.huaFaAppList(shoppingGoodsForm);
 					redisClient.set(key,JSON.toJSONString(returnDataUtil.getReturnObject()));

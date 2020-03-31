@@ -55,8 +55,8 @@ public class MachinesClient {
 //			log.error("URISyntaxException",e);
 //			e.printStackTrace();
 //		}
-		//String url="https://devapp.huafatech.com/app/water/orderInfo/createWaterOrderInfo";
-		String url="http://localhost:6663/order/returnOrder";
+		String url="https://devapp.huafatech.com/app/water/orderInfo/createWaterOrderInfo";
+		//String url="http://localhost:6663/order/returnOrder";
 		redisClient.set(payCode+"Delivery",json);
 		for(int i=0;i<times;i++){
 			log.info("sendingDeliveryFinishOrder"+payCode);
@@ -65,6 +65,37 @@ public class MachinesClient {
 			if(huaFaResult !=null && huaFaResult.getSuccess().equals("true")){
 				log.info(i+"发送成功");
 				redisClient.del(payCode+"Delivery");
+				break;
+			}
+
+			try {
+				Thread.sleep((times+1)*5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		return back;
+	}
+
+	public String sendHuaFaUpdate(Integer times,Long orderId,String json)  {
+		String back = null;
+//		URI uri = null;
+//		try {
+//			uri = new URIBuilder().setScheme("http").setHost(112.74.173.67:8502).setPath("/openDoor").build();
+//		} catch (URISyntaxException e) {
+//			log.error("URISyntaxException",e);
+//			e.printStackTrace();
+//		}
+		String url="https://devapp.huafatech.com/app/water/orderInfo/updateWaterOrderInfo";
+		//String url="http://localhost:6663/order/returnOrder";
+		redisClient.set(orderId+"Delivery",json);
+		for(int i=0;i<times;i++){
+			log.info("updateOrderID"+orderId);
+			back = HttpUtil.post(url,json);
+			HuaFaResult huaFaResult = JSON.parseObject(back,HuaFaResult.class);
+			if(huaFaResult !=null && huaFaResult.getSuccess().equals("true")){
+				log.info(i+"发送成功");
+				redisClient.del(orderId+"Delivery");
 				break;
 			}
 

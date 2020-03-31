@@ -294,10 +294,15 @@ public class OrderController {
 		}
 		orderForm.setCustomerId(UserUtils.getUser().getId());
 		orderForm.setPageSize(30);
+		String openId = orderService.findOpenIdByCustomerId(orderForm.getCustomerId());
 		if (orderForm.getCustomerId() != null) {
 			if (orderForm.getOrderType() != null) {// 订单类型 1.商城订单 2.机器订单
 				if (orderForm.getOrderType() == 1) {// 1.商城订单
-					returnDataUtil = orderService.storeOrderFind(orderForm);
+					if (StringUtil.isNotEmpty(openId)){
+						returnDataUtil = orderService.storeOrderFind(orderForm);
+					}else {
+						returnDataUtil= orderService.storeOrderFindByHuafa(orderForm);
+				   }
 				}
 				if (orderForm.getOrderType() == 2) {// 2.机器订单
 					List<OrderDto> machinesOrder = orderService.findOrderById(UserUtils.getUser().getId(),
@@ -508,19 +513,19 @@ public class OrderController {
 
 	@ApiOperation(value = "更改配送状态", notes = "更改配送状态", httpMethod = "POST", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@PostMapping("/deliveryCompleted")
-	public ReturnDataUtil delivering(@RequestParam Long orderId){
+	public ReturnDataUtil delivering(Long orderId){
 		ReturnDataUtil returnDataUtil = new ReturnDataUtil();
+		log.info(orderId);
 		String payCode = orderService.findPayCodeByOrderId(orderId);
 		OrderBean oBean=orderService.getMessageByPayCode(payCode);
 		Long customerId =oBean.getCustomerId();
 		log.info(customerId+"====="+customerId);
 		TblCustomerBean tblCustomerBean = tblCustomerService.getCustomerById(customerId);
 		boolean bean = orderService.delivering(orderId);
-		System.out.println("========================================" + orderId);
 		if (bean) {
 			returnDataUtil.setStatus(1);
 			returnDataUtil.setMessage("配送状态修改成功！");
-			if (oBean.getType()==2  && tblCustomerBean.getHuafaAppOpenId() != null){
+			if (oBean.getType()==1  && tblCustomerBean.getHuafaAppOpenId() != null){
 				HashMap<String, Object> map = new HashMap<>();
 				map.put("openId",tblCustomerBean.getHuafaAppOpenId());
 				map.put("orderId",orderId);
@@ -533,7 +538,7 @@ public class OrderController {
 					public void run(){
 						// run方法具体重写
 						try {
-							machinesClient.sendHuaFa(5,payCode, json);
+							machinesClient.sendHuaFaUpdate(5,orderId, json);
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -547,5 +552,18 @@ public class OrderController {
 		return  returnDataUtil;
 	}
 
+	@PostMapping("/getState")
+	public ReturnDataUtil getState(String payCode){
+		ReturnDataUtil returnDataUtil = new ReturnDataUtil();
+		OrderBean orderBean = orderService.getMessageByPayCode(payCode);
+		if (orderBean.getState()==10001 || orderBean.getState() == 200004){
+			returnDataUtil.setStatus(1);
+			returnDataUtil.setMessage("用户已成功支付");
+		}else {
+			returnDataUtil.setStatus(0);
+			returnDataUtil.setMessage("用户未成功支付，请重新支付！");
+		}
+		return returnDataUtil;
+	}
 
 }

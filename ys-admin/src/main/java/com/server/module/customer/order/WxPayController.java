@@ -213,7 +213,7 @@ public class WxPayController {
 		//String url = orderForm.getUrl();
 		redisClient.set("Price_"+customerId, id.get("nowprice").toString(),60*5);
 		//Integer companyId = orderService.getCompanyIdByPayCode(payCode);
-		companyId=76;
+		companyId=1;
 		WXPay wxPay = wxpayConfigFactory.getWXPay(companyId);
 		WXPayConfig wxPayConfig = wxpayConfigFactory.getWXPayConfig(companyId);
 		MyWXRequest request = new MyWXRequest();
@@ -270,7 +270,7 @@ public class WxPayController {
 			e.printStackTrace();
 		}
 		map.put("payInfo", payInfo);// 微信支付
-		mweb_url=mweb_url+"&redirect_url=http://webapp.youshuidaojia.com:8081/cMain/payFinish";
+		mweb_url=mweb_url+"&redirect_url=http://webapp.youshuidaojia.com:8081/cMain/myOrder";
 		log.info("<WxPayController>----<appLinkSms>----end");
 		return mweb_url;
 		//return map;
@@ -457,8 +457,8 @@ public class WxPayController {
 	 * @param xml
 	 * @return
 	 */
-	@RequestMapping(value = "/huafaStoreNotify")
-	public void huafaPayStoreNotify(@RequestBody String xml, HttpServletResponse response) {
+	@RequestMapping(value = "/storeAppNotify")
+	public void storeAppNotify(@RequestBody String xml, HttpServletResponse response) {
 		log.info("<WxPayController>----<payStoreNotify>----start");
 		String returnResult = null;
 		try {

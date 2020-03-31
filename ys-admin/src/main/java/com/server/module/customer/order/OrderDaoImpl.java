@@ -133,6 +133,33 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 	}
 
 	@Override
+	public String findHuafaopenIdByCustomerId(Long customerId) {
+		log.info("<OrderDaoImpl--findOpenIdByCustomerId--start>");
+		StringBuffer sql = new StringBuffer();
+		sql.append("SELECT huafaAppOpenId FROM tbl_customer WHERE id=" + customerId);
+		log.info("sql语句：" + sql);
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		String openid = null;
+		try {
+			conn = openConnection();
+			ps = conn.prepareStatement(sql.toString());
+			rs = ps.executeQuery();
+			while (rs != null && rs.next()) {
+				openid = rs.getString("huafaAppOpenId");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			this.closeConnection(rs, ps, conn);
+		}
+		log.info("<OrderDaoImpl--findOpenIdByCustomerId--end>");
+		return openid;
+
+	}
+
+	@Override
 	public double findDeductionMoneyByCoupon(Integer coupon) {
 		log.info("<OrderDaoImpl--findDeductionMoneyByCoupon--start>");
 		StringBuffer sql = new StringBuffer();
@@ -291,6 +318,86 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 			this.closeConnection(rs, pst, conn);
 		}
 	}
+
+	@Override
+	public ReturnDataUtil storeOrderFindByHuafa(OrderForm orderform) {
+		log.info("<MachineReplenishDaoImpl--storeOrderFind--start>");
+		ReturnDataUtil data = new ReturnDataUtil();
+		StringBuffer sql = new StringBuffer();
+		if (orderform.getFindType() == 0) {
+			sql.append(
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order  so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
+					+ ") ");
+			sql.append(" GROUP BY so.id order by so.createTime  desc ,so.state desc  ");
+		} else if (orderform.getFindType() == 1) {
+			sql.append(
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
+					+ ")  and so.state=10001");
+			sql.append(" GROUP BY so.id order by so.createTime desc ");
+		} else if (orderform.getFindType() == 2) {
+			sql.append(
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
+					+ ")  and so.state=10002 ");
+			sql.append(" GROUP BY so.id order by so.createTime desc ");
+		} else if (orderform.getFindType() == 3) {
+			sql.append(
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
+					+ ")  and so.state=200004");
+			sql.append(" GROUP BY so.id order by so.createTime desc ");
+		}
+		Connection conn = null;
+		PreparedStatement pst = null;
+		ResultSet rs = null;
+		log.info("商城订单查询：sql>>>:" + sql.toString());
+		try {
+			conn = openConnection();
+			pst = conn.prepareStatement(super.countSql(sql.toString()));
+			rs = pst.executeQuery();
+			long count = 0;
+			while (rs.next()) {
+				count = rs.getRow();
+			}
+			long off = (orderform.getCurrentPage() - 1) * orderform.getPageSize();
+			pst = conn.prepareStatement(sql.toString() + " limit " + off + "," + orderform.getPageSize());
+			rs = pst.executeQuery();
+			List<OrderBean> list = Lists.newArrayList();
+			while (rs.next()) {
+				OrderBean bean = new OrderBean();
+				bean = new OrderBean();
+				bean.setProduct(rs.getString("product"));
+				bean.setId(rs.getInt("id"));
+				bean.setStateName(PayStateEnum.findStateName(rs.getInt("state")));
+				bean.setNowprice(rs.getBigDecimal("nowprice"));
+				String createTime = rs.getString("createTime");
+				String time = createTime.substring(0, createTime.indexOf("."));
+				bean.setTime(time);
+				bean.setPayCode(rs.getString("payCode"));
+				List<ShoppingBean> shoppingList = findOrderIdByShoppingBean(rs.getLong("id"), orderform.getOrderType());
+				bean.setType(rs.getInt("type"));
+				bean.setList(shoppingList);
+				bean.setState(rs.getInt("state"));
+				bean.setUseMoney(rs.getBigDecimal("useMoney"));
+				list.add(bean);
+			}
+			data.setCurrentPage(orderform.getCurrentPage());
+			data.setTotal(count);
+			data.setReturnObject(list);
+			data.setStatus(1);
+			data.setMessage("查询成功");
+			log.info("<MachineReplenishDaoImpl--storeOrderFind----end>");
+			return data;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return data;
+		} finally {
+			this.closeConnection(rs, pst, conn);
+		}
+	}
+
 
 	@Override
 	public boolean update(OrderBean orderbean) {
@@ -1403,7 +1510,7 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 				bean.setState(rs.getInt("state"));
 				bean.setNowprice(rs.getBigDecimal("nowprice"));
 				bean.setPayCode(rs.getString("payCode"));
-				bean.setCreateTime(rs.getTime("createTime"));
+				bean.setCreateTime(rs.getTimestamp("createTime"));
 				bean.setType(rs.getInt("type"));
 				bean.setCustomerId(rs.getLong("customerId"));
 				bean.setPrice(rs.getBigDecimal("price"));

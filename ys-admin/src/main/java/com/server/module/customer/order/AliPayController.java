@@ -126,8 +126,8 @@ public class AliPayController {
 		//AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();// 创建API对应的request
 		//AlipayTradeAppPayRequest aliAppPayRequest = new AlipayTradeAppPayRequest();
 		AliPayConfig alipayConfig = alipayConfigFactory.getAlipayConfig(companyId);
-		alipayRequest.setReturnUrl("http://webapp.youshuidaojia.com:8081/cMain/myOrder");//这个接口是获取token返回机器首页
-		alipayRequest.setNotifyUrl("http://free-tcp.svipss.top:34731/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
+		alipayRequest.setReturnUrl("http://webapp.youshuidaojia.com:8081/cMain/firstPage");//这个接口是获取token返回机器首页
+		alipayRequest.setNotifyUrl("http://free-tcp.svipss.top:15451/aliInfo/appNotify");// 在公共参数中设置回跳和通知地址
 		alipayRequest.setBizContent("{"
 				+ " \"out_trade_no\":\""+payCode+"\","
 				+ " \"total_amount\":\""+nowprice+"\","

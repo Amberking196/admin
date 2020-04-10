@@ -15,7 +15,7 @@ public class CustomerOrderBean {
 	private Integer orderId;
 	// 平台订单号
 	private String ptCode;
-	// 类型 1=商城订单 2=售货机订单
+	// 类型 1=商城订单 2=华发商城订单
 	private Integer type;
 	// 订单类型名称
 	private String orderName;
@@ -85,7 +85,7 @@ public class CustomerOrderBean {
 			orderName = "商城订单";
 		}
 		if (type == 2) {
-			orderName = "售货机订单";
+			orderName = "华发订单";
 		}
 		if (type == 3) {
 			orderName = "商城团购订单";

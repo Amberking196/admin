@@ -247,25 +247,25 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 		StringBuffer sql = new StringBuffer();
 		if (orderform.getFindType() == 0) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order  so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order  so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ") ");
 			sql.append(" GROUP BY so.id order by so.createTime  desc ,so.state desc  ");
 		} else if (orderform.getFindType() == 1) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ")  and so.state=10001");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
 		} else if (orderform.getFindType() == 2) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ")  and so.state=10002 ");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
 		} else if (orderform.getFindType() == 3) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select openId from tbl_customer_wx where customerId=" + orderform.getCustomerId()
 					+ ")  and so.state=200004");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
@@ -299,6 +299,7 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 				bean.setPayCode(rs.getString("payCode"));
 				List<ShoppingBean> shoppingList = findOrderIdByShoppingBean(rs.getLong("id"), orderform.getOrderType());
 				bean.setType(rs.getInt("type"));
+				bean.setPayType(rs.getInt("payType"));
 				bean.setList(shoppingList);
 				bean.setState(rs.getInt("state"));
 				bean.setUseMoney(rs.getBigDecimal("useMoney"));
@@ -326,25 +327,25 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 		StringBuffer sql = new StringBuffer();
 		if (orderform.getFindType() == 0) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order  so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order  so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
 					+ ") ");
 			sql.append(" GROUP BY so.id order by so.createTime  desc ,so.state desc  ");
 		} else if (orderform.getFindType() == 1) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
 					+ ")  and so.state=10001");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
 		} else if (orderform.getFindType() == 2) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
 					+ ")  and so.state=10002 ");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
 		} else if (orderform.getFindType() == 3) {
 			sql.append(
-					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
+					"select so.state,so.product,so.id,so.state,so.nowprice,so.payCode,so.createTime,so.type,so.payType,m.useMoney from store_order so left join member_use_log m on  m.orderType=2 and  so.id=m.orderId ");
 			sql.append(" where openid in(select huafaAppOpenId from tbl_customer where id=" + orderform.getCustomerId()
 					+ ")  and so.state=200004");
 			sql.append(" GROUP BY so.id order by so.createTime desc ");
@@ -378,6 +379,7 @@ public class OrderDaoImpl extends BaseDao<OrderBean> implements OrderDao {
 				bean.setPayCode(rs.getString("payCode"));
 				List<ShoppingBean> shoppingList = findOrderIdByShoppingBean(rs.getLong("id"), orderform.getOrderType());
 				bean.setType(rs.getInt("type"));
+				bean.setPayType(rs.getInt("payType"));
 				bean.setList(shoppingList);
 				bean.setState(rs.getInt("state"));
 				bean.setUseMoney(rs.getBigDecimal("useMoney"));

@@ -270,7 +270,7 @@ public class WxPayController {
 			e.printStackTrace();
 		}
 		map.put("payInfo", payInfo);// 微信支付
-		mweb_url=mweb_url+"&redirect_url=http://webapp.youshuidaojia.com:8081/cMain/myOrder";
+		mweb_url=mweb_url+"&redirect_url=http://webapp.youshuidaojia.com:8081/cMain/firstPage";
 		log.info("<WxPayController>----<appLinkSms>----end");
 		return mweb_url;
 		//return map;
